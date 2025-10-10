@@ -12,6 +12,7 @@ edit_uri: edit/main/
 # Theme Configuration for Technical Documentation
 theme:
   name: material
+  logo: assets/logo.png
   
   palette:
     - scheme: slate

@@ -1,6 +1,5 @@
 # Embedded Systems Documentation Site
 site_name: ESP32 & ATmega Library Collection
-site_url: https://Brahmworks.github.io/BrahmWiki
 site_author: Avichal Chaturvedi
 site_description: Complete library collection for ESP32, ATmega328P, and ATmega2560 microcontrollers
 

@@ -48,10 +48,6 @@ theme:
   icon:
     repo: fontawesome/brands/github
 
-nav:
-  - Home: index.md
-  - 'ESP32 DHT Sensor Tutorial': esp32-dht-sensor.md
-
 # Plugins for Embedded Documentation
 plugins:
   - search:

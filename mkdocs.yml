@@ -1,0 +1,99 @@
+# Embedded Systems Documentation Site
+site_name: ESP32 & ATmega Library Collection
+site_url: https://yourusername.github.io/embedded-library-repo
+site_author: Your Name
+site_description: Complete library collection for ESP32, ATmega328P, and ATmega2560 microcontrollers
+
+# Repository Information
+repo_url: https://github.com/yourusername/embedded-library-repo
+repo_name: yourusername/embedded-library-repo
+edit_uri: edit/main/
+
+# Theme Configuration for Technical Documentation
+theme:
+  name: material
+  
+  palette:
+    - scheme: slate
+      primary: deep purple
+      accent: purple
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to light mode
+    - scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/weather-night
+        name: Switch to dark mode
+  
+  features:
+    - navigation.tabs
+    - navigation.tabs.sticky
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - search.highlight
+    - search.share
+    - content.code.copy
+    - content.code.annotate
+    - content.action.edit
+
+  icon:
+    repo: fontawesome/brands/github
+
+# Plugins for Embedded Documentation
+plugins:
+  - search:
+      lang: en
+  - gen-files:
+      scripts:
+        - gen_embedded_docs.py
+
+# Markdown Extensions for Code and Diagrams
+markdown_extensions:
+  - admonition
+  - attr_list
+  - def_list
+  - md_in_html
+  - toc:
+      permalink: true
+      title: On this page
+  - pymdownx.arithmatex:
+      generic: true
+  - pymdownx.betterem
+  - pymdownx.caret
+  - pymdownx.details
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.keys
+  - pymdownx.mark
+  - pymdownx.smartsymbols
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.tasklist:
+      custom_checkbox: true
+
+extra_css:
+  - stylesheets/embedded.css
+
+extra_javascript:
+  - javascripts/embedded.js
+
+# Extra Configuration for Embedded Systems
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/yourusername
+  generator: false

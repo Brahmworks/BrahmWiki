@@ -1,7 +1,7 @@
 # Embedded Systems Documentation Site
 site_name: ESP32 & ATmega Library Collection
 site_url: https://Brahmworks.github.io/BrahmWiki
-site_author: Your Name
+site_author: Avichal Chaturvedi
 site_description: Complete library collection for ESP32, ATmega328P, and ATmega2560 microcontrollers
 
 # Repository Information
@@ -11,7 +11,8 @@ edit_uri: edit/main/
 
 # Theme Configuration for Technical Documentation
 theme:
-  name: cinder
+  name: material
+  custom_dir: mkdocs-cinder
   logo: assets/logo.png
   
   features:

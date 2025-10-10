@@ -15,18 +15,21 @@ theme:
   logo: assets/logo.png
   
   palette:
-    - scheme: slate
-      primary: deep purple
+    # Palette toggle for light mode
+    - scheme: default
+      primary: teal
       accent: purple
       toggle:
-        icon: material/weather-sunny
-        name: Switch to light mode
-    - scheme: default
-      primary: indigo
-      accent: indigo
-      toggle:
-        icon: material/weather-night
+        icon: material/brightness-7
         name: Switch to dark mode
+
+    # Palette toggle for dark mode
+    - scheme: slate
+      primary: black
+      accent: lime
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
   
   features:
     - navigation.tabs
@@ -34,6 +37,8 @@ theme:
     - navigation.sections
     - navigation.expand
     - navigation.top
+    - navigation.tracking
+    - navigation.instant
     - search.highlight
     - search.share
     - content.code.copy

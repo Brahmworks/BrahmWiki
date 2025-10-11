@@ -47,6 +47,11 @@ theme:
   icon:
     repo: fontawesome/brands/github
 
+nav:
+  - Home: index.md
+  - Libraries: libraries/
+  - Microcontrollers: microcontrollers/
+
 # Plugins for Embedded Documentation
 plugins:
   - search:

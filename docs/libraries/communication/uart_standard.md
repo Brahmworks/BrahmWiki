@@ -10,7 +10,11 @@ This library provides a standardized, cross-platform interface for UART (serial)
 
 ## API Reference
 
-### `void uart_init(uint8_t uart_num, uint32_t baud_rate)`
+### `uart_init`
+
+```c
+void uart_init(uint8_t uart_num, uint32_t baud_rate);
+```
 
 Initializes a specific UART port for communication. This function must be called before any other UART operations on that port.
 
@@ -23,7 +27,11 @@ Initializes a specific UART port for communication. This function must be called
 
 ---
 
-### `void uart_write(uint8_t uart_num, const char *str)`
+### `uart_write`
+
+```c
+void uart_write(uint8_t uart_num, const char *str);
+```
 
 Transmits a null-terminated string of characters over the specified UART port.
 
@@ -32,7 +40,11 @@ Transmits a null-terminated string of characters over the specified UART port.
 
 ---
 
-### `int uart_read(uint8_t uart_num, uint8_t *buffer, uint32_t len)`
+### `uart_read`
+
+```c
+int uart_read(uint8_t uart_num, uint8_t *buffer, uint32_t len);
+```
 
 Reads a specified number of bytes from the UART port's receive buffer.
 

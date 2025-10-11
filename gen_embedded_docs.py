@@ -52,7 +52,7 @@ class EmbeddedDocsGenerator:
         self.clear_generated_docs()
         
         # Generate main documentation sections
-        self.generate_main_index()
+        # self.generate_main_index()
         self.generate_library_docs()
         self.generate_mcu_guides()
         # self.generate_project_examples()

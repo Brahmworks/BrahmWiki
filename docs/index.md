@@ -48,3 +48,4 @@ Adding a new library to BrahmWiki is simple. Just follow these steps:
 4.  **Create a `README.md`** file in your library's directory with documentation, wiring diagrams, and API references. You can use `lib/sensors/sensor_template/README.md` as a starting point.
 
 Once you've created your library, submit a pull request, and we'll review it for inclusion in the collection.
+

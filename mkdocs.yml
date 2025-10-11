@@ -56,6 +56,7 @@ nav:
       - 'I2C Common': 'libraries/communication/i2c_common/index.md'
       - 'UART Common': 'libraries/communication/uart_common/index.md'
       - 'WiFi ESP32': 'libraries/communication/wifi_esp32/index.md'
+      - 'Standard UART': 'lib/communication/uart_standard/README.md'
     - 'Sensors':
       - 'Humidity DHT22': 'libraries/sensors/humidity_dht22/index.md'
       - 'Pressure BMP280': 'libraries/sensors/pressure_bmp280/index.md'

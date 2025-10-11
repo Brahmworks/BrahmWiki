@@ -49,8 +49,8 @@ theme:
 
 nav:
   - Home: index.md
-  - Libraries: libraries/
-  - Microcontrollers: microcontrollers/
+  - Libraries: libraries/index.md
+  - Microcontrollers: microcontrollers/index.md
 
 # Plugins for Embedded Documentation
 plugins:

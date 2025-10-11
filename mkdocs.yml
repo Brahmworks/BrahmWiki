@@ -50,7 +50,7 @@ nav:
     - 'Overview': 'libraries/index.md'
     - 'RTOS': 'libraries/rtos/README.md'
     - 'Communication':
-      - 'Standard UART': 'lib/communication/uart_standard/README.md'
+      - 'Standard UART': 'libraries/communication/uart_standard.md'
   - 'Microcontrollers':
     - 'Overview': 'microcontrollers/index.md'
     - 'ESP32': 'microcontrollers/esp32.md'

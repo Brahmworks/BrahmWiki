@@ -48,9 +48,26 @@ theme:
     repo: fontawesome/brands/github
 
 nav:
-  - Home: index.md
-  - Libraries: libraries/index.md
-  - Microcontrollers: microcontrollers/index.md
+  - 'Home': 'index.md'
+  - 'Libraries':
+    - 'Overview': 'libraries/index.md'
+    - 'Actuators':
+      - 'DC Motor': 'libraries/actuators/dc_motor/index.md'
+      - 'Servo Control': 'libraries/actuators/servo_control/index.md'
+      - 'Stepper Motor': 'libraries/actuators/stepper_motor/index.md'
+    - 'Communication':
+      - 'I2C Common': 'libraries/communication/i2c_common/index.md'
+      - 'UART Common': 'libraries/communication/uart_common/index.md'
+      - 'WiFi ESP32': 'libraries/communication/wifi_esp32/index.md'
+    - 'Sensors':
+      - 'Humidity DHT22': 'libraries/sensors/humidity_dht22/index.md'
+      - 'Pressure BMP280': 'libraries/sensors/pressure_bmp280/index.md'
+      - 'Temperature DS18B20': 'libraries/sensors/temperature_ds18b20/index.md'
+  - 'Microcontrollers':
+    - 'Overview': 'microcontrollers/index.md'
+    - 'ESP32': 'microcontrollers/esp32.md'
+    - 'ATmega328P': 'microcontrollers/atmega328.md'
+    - 'ATmega2560': 'microcontrollers/atmega2560.md'
 
 # Plugins for Embedded Documentation
 plugins:

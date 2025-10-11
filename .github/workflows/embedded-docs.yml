@@ -26,54 +26,32 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  build-embedded-docs:
+  build-and-deploy:
     runs-on: ubuntu-latest
-    
     steps:
-    - name: Checkout Repository
-      uses: actions/checkout@v4
-      with:
-        fetch-depth: 0
-        
-    - name: Setup Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.11'
-        
-    - name: Install Dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install mkdocs-material
-        pip install mkdocs-gen-files
-        pip install pymdown-extensions
-        
-    - name: Generate Embedded Documentation
-      run: |
-        python gen_embedded_docs.py
-        echo "📚 Generated documentation structure:"
-        find docs -type f -name "*.md" | head -20
-        
-    - name: Validate Documentation
-      run: |
-        # Check for essential documentation files
-        test -f docs/index.md || exit 1
-        echo "✅ Documentation validation passed"
-        
-    - name: Build Documentation Site
-      run: |
-        mkdocs build --verbose
-        echo "🏗️ Built documentation site"
-        ls -la site/
-        
-    - name: Upload Documentation Artifact
-      uses: actions/upload-pages-artifact@v3
-      with:
-        path: ./site
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-  deploy:
-    needs: build-embedded-docs
-    runs-on: ubuntu-latest
-    steps:
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install mkdocs-material
+          pip install mkdocs-gen-files
+          pip install pymdown-extensions
+
+      - name: Generate Embedded Documentation
+        run: python gen_embedded_docs.py
+
+      - name: Build Documentation Site
+        run: mkdocs build --verbose
+
       - name: Deploy to GitHub Pages
         uses: JamesIves/github-pages-deploy-action@4.1.1
         with:

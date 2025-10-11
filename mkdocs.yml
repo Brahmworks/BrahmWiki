@@ -61,9 +61,6 @@ nav:
 plugins:
   - search:
       lang: en
-  - gen-files:
-      scripts:
-        - gen_embedded_docs.py
 
 # Markdown Extensions for Code and Diagrams
 markdown_extensions:

@@ -1,0 +1,1 @@
+{"type": "library", "name": "rtos_blink_atmega328p", "version": "0.0.0+20251011125700", "spec": {"owner": null, "id": null, "name": "rtos_blink_atmega328p", "requirements": null, "uri": "file://../../lib/rtos_blink_atmega328p"}}

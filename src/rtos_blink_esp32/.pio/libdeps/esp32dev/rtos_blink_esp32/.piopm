@@ -1,0 +1,1 @@
+{"type": "library", "name": "rtos_blink_esp32", "version": "0.0.0+20251011124359", "spec": {"owner": null, "id": null, "name": "rtos_blink_esp32", "requirements": null, "uri": "file://../../lib/rtos_blink_esp32"}}

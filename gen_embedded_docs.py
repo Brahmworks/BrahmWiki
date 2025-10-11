@@ -49,7 +49,7 @@ class EmbeddedDocsGenerator:
         print("🔧 Generating embedded systems documentation...")
         
         # Clear existing docs
-        self.clear_generated_docs()
+        # self.clear_generated_docs()
         
         # Generate main documentation sections
         # self.generate_main_index()

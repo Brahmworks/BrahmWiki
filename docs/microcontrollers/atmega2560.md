@@ -1,28 +1,21 @@
-# ATmega2560 Setup Guide
+# ATmega2560
 
-**8-bit AVR microcontroller with more I/O**
+The ATmega2560 is a powerful 8-bit microcontroller used in the Arduino Mega board. It has a large number of I/O pins, making it suitable for complex projects.
 
-## Overview
+## Pinout
 
-| Specification | Details |
-|---------------|----------|
-| Architecture | 8-bit AVR |
-| Operating Voltage | 5V |
-| GPIO Pins | 86 |
-| Analog Inputs | 16 |
 
-## Development Environment Setup
 
-### Arduino IDE Setup
+## Pin Reference
 
-1. Install Arduino IDE
-2. Select Arduino Uno (ATmega328P) or Arduino Mega (ATmega2560)
-3. Connect via USB and select correct COM port
+### Digital Pins
 
-### Atmel Studio Setup
+The ATmega2560 has 54 digital I/O pins.
 
-1. Download and install Atmel Studio
-2. Create new GCC C Executable Project
-3. Select ATmega2560 as target device
-4. Configure programmer (AVRISP, USBasp, etc.)
+### Analog Pins (ADC)
 
+The ATmega2560 has 16 analog inputs.
+
+### PWM Pins
+
+The ATmega2560 has 15 pins that can be used for PWM.

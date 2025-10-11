@@ -45,8 +45,28 @@ void vTaskDelay(const TickType_t xTicksToDelay);
 
 -   **`xTicksToDelay`**: The number of system ticks to delay the task for. The constant `portTICK_PERIOD_MS` can be used to convert milliseconds to ticks (e.g., `1000 / portTICK_PERIOD_MS` for a 1-second delay).
 
+## How to Use
+
+The RTOS tasks are organized into libraries. To use a task, you simply need to include the library's header file and call its initialization function from your `setup()` or `app_main()` function.
+
+For example, to use the RTOS blink task for the ATmega328P, your `main.cpp` would look like this:
+
+```cpp
+#include <Arduino.h>
+#include "rtos_blink_atmega328p.h"
+
+void setup() {
+  // This single function creates and starts the blink task.
+  init_blink_task();
+}
+
+void loop() {
+  // The loop is empty because the RTOS is managing the tasks.
+}
+```
+
 ## Application Notes
 
--   **Task Management:** Each major function, such as blinking an LED or reading a sensor, should be implemented in its own task.
+-   **Task Management:** Each major function, such as blinking an LED or reading a sensor, should be implemented in its own task within a library.
 -   **Stack Size:** Ensure that each task is allocated a sufficient stack size. Stack overflows are a common source of bugs in RTOS applications. The `configMINIMAL_STACK_SIZE` constant can be used as a starting point, but may need to be increased depending on the complexity of the task.
 -   **Delays:** Use `vTaskDelay()` or `vTaskDelayUntil()` for delays instead of `delay()`. This allows the RTOS to switch to other tasks while the current task is waiting, improving efficiency.

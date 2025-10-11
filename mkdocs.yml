@@ -48,6 +48,7 @@ nav:
   - 'Home': 'index.md'
   - 'Libraries':
     - 'Overview': 'libraries/index.md'
+    - 'RTOS': 'libraries/rtos/README.md'
     - 'Communication':
       - 'Standard UART': 'lib/communication/uart_standard/README.md'
   - 'Microcontrollers':

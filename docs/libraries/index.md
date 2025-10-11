@@ -1,5 +1,11 @@
 # Libraries
 
-Welcome to the BrahmWiki library collection. Here you will find a growing collection of open-source libraries for a variety of microcontrollers and applications.
+This section provides an overview of the libraries used and developed for this project.
 
-Use the navigation on the left to browse the available libraries by category.
+## Custom Libraries
+
+-   **[Standard UART](lib/communication/uart_standard/README.md):** A cross-platform library for UART communication on ESP32 and AVR microcontrollers.
+
+## Third-Party Libraries
+
+-   **[FreeRTOS](rtos/README.md):** A real-time operating system used for task management.

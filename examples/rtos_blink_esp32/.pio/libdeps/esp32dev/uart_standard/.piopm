@@ -1,1 +1,0 @@
-{"type": "library", "name": "uart_standard", "version": "0.0.0+20251011113547", "spec": {"owner": null, "id": null, "name": "uart_standard", "requirements": null, "uri": "file://../../lib/communication/uart_standard"}}

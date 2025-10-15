@@ -1,0 +1,2 @@
+source C:/kowshik/khulad_party/examples/max6675_example_esp32/.pio/build/esp32dev/bootloader/gdbinit/symbols
+source C:/kowshik/khulad_party/examples/max6675_example_esp32/.pio/build/esp32dev/bootloader/gdbinit/connect

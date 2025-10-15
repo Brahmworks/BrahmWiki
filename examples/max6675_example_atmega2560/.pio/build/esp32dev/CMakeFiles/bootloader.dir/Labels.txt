@@ -1,0 +1,13 @@
+# Target labels
+ bootloader
+# Source files and their labels
+C:/kowshik/khulad_party/examples/max6675_example_atmega2560/.pio/build/esp32dev/CMakeFiles/bootloader
+C:/kowshik/khulad_party/examples/max6675_example_atmega2560/.pio/build/esp32dev/CMakeFiles/bootloader.rule
+C:/kowshik/khulad_party/examples/max6675_example_atmega2560/.pio/build/esp32dev/CMakeFiles/bootloader-complete.rule
+C:/kowshik/khulad_party/examples/max6675_example_atmega2560/.pio/build/esp32dev/bootloader-prefix/src/bootloader-stamp/bootloader-install.rule
+C:/kowshik/khulad_party/examples/max6675_example_atmega2560/.pio/build/esp32dev/bootloader-prefix/src/bootloader-stamp/bootloader-mkdir.rule
+C:/kowshik/khulad_party/examples/max6675_example_atmega2560/.pio/build/esp32dev/bootloader-prefix/src/bootloader-stamp/bootloader-download.rule
+C:/kowshik/khulad_party/examples/max6675_example_atmega2560/.pio/build/esp32dev/bootloader-prefix/src/bootloader-stamp/bootloader-update.rule
+C:/kowshik/khulad_party/examples/max6675_example_atmega2560/.pio/build/esp32dev/bootloader-prefix/src/bootloader-stamp/bootloader-patch.rule
+C:/kowshik/khulad_party/examples/max6675_example_atmega2560/.pio/build/esp32dev/bootloader-prefix/src/bootloader-stamp/bootloader-configure.rule
+C:/kowshik/khulad_party/examples/max6675_example_atmega2560/.pio/build/esp32dev/bootloader-prefix/src/bootloader-stamp/bootloader-build.rule

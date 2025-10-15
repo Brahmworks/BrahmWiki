@@ -1,23 +1,58 @@
 #include <Arduino.h>
-#include "ultrasonic_dypa02.h"
+#include <SoftwareSerial.h>
 
-#define TRIGGER_PIN 9
-#define ECHO_PIN 10
+//Pin Configuration
+#define RX_PIN A4  
+#define TX_PIN A5  
+SoftwareSerial dypSerial(RX_PIN, TX_PIN);
+
+//Constants
+const float DISTANCE_THRESHOLD_CM = 8.0;  // threshold in cm
+
+//Variables
+bool objectDetected = false;
 
 void setup() {
   Serial.begin(9600);
-  ultrasonic_init(TRIGGER_PIN, ECHO_PIN);
+  dypSerial.begin(9600);
+
+  Serial.println("DYP-A02YYGDW Object Detection Started");
+  delay(500);
 }
 
 void loop() {
-  float distance_cm = measureDistanceInCentimeters();
-  Serial.print("Distance: ");
-  Serial.print(distance_cm);
-  Serial.println(" cm");
+  static uint8_t buf[4] = {0,0,0,0};
 
-  if (isObstacleDetected(UNIT_CM, 20)) {
-    Serial.println("Obstacle detected within 20 cm!");
+  while (dypSerial.available() > 0) {
+    // shift old bytes
+    buf[0] = buf[1];
+    buf[1] = buf[2];
+    buf[2] = buf[3];
+    buf[3] = (uint8_t)dypSerial.read();
+
+    // check for valid frame
+    if (buf[0] == 0xFF) {
+      uint16_t raw = ((uint16_t)buf[1] << 8) | buf[2];
+      uint8_t sum = buf[3];
+      uint8_t check = (0xFF + buf[1] + buf[2]) & 0xFF;
+
+      if (check == sum) {
+        float distance_cm = raw / 10.0f;
+
+        //Presence Logic
+        objectDetected = (distance_cm <= DISTANCE_THRESHOLD_CM && distance_cm > 0);
+
+        //Debug Output (optional)
+        Serial.print("Distance: ");
+        Serial.print(distance_cm, 1);
+        Serial.print(" cm  |  Object Detected: ");
+        Serial.println(objectDetected ? "YES" : "NO");
+
+        // reset buffer for next frame
+        buf[0] = buf[1] = buf[2] = buf[3] = 0;
+      }
+    }
   }
 
-  delay(1000);
+  delay(10); // small delay to avoid serial flooding
 }

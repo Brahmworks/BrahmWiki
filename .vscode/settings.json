@@ -1,3 +1,6 @@
 {
-    "cmake.sourceDirectory": "C:/Users/Brahmworks/OneDrive/Documents/GitHub/Reactor4-shell/BrahmWiki/src/rtos_blink_esp32/src"
+    "cmake.sourceDirectory": "C:/Users/Brahmworks/OneDrive/Documents/GitHub/Reactor4-shell/BrahmWiki/src/rtos_blink_esp32/src",
+    "idf.espIdfPathWin": "C:/Users/DELL/Downloads/Espressif/frameworks/esp-idf-v5.4.1/",
+    "idf.toolsPathWin": "C:\\Users\\DELL\\Downloads\\Espressif",
+    "idf.pythonInstallPath": "C:\\Users\\DELL\\Downloads\\Espressif\\tools\\idf-python\\3.11.2\\python.exe"
 }

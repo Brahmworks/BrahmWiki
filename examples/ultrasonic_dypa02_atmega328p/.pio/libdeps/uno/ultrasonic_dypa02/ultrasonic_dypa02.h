@@ -1,67 +1,52 @@
-#ifndef ULTRASONIC_DYPA02_H
-#define ULTRASONIC_DYPA02_H
+#ifndef DYP_UART_H
+#define DYP_UART_H
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-#include <stdbool.h>
 #include <stdint.h>
+#include <stdbool.h>
+#include <stddef.h>
+#include <math.h>
 
-typedef enum {
-    UNIT_MM,
-    UNIT_CM,
-    UNIT_INCH,
-    UNIT_FEET
-} distance_unit_t;
+#define DYP_UART_BAUD_DEFAULT 9600
+#define DYP_UART_ERROR       (-1)
+#define DYP_UART_OK           0
 
-/**
- * @brief Initializes the ultrasonic sensor.
- *
- * @param trigger_pin The pin connected to the sensor's trigger input.
- * @param echo_pin The pin connected to the sensor's echo output.
- */
-void ultrasonic_init(uint8_t trigger_pin, uint8_t echo_pin);
+/* Initialize the UART-based DYP sensor.
+   - rx_pin, tx_pin: platform pin numbers (Arduino digital/Ax macros or ESP32 GPIO numbers)
+   - baud: baudrate (pass 0 to use default 9600)
+   Returns 0 on success, negative on error. */
+int dyp_uart_init(int rx_pin, int tx_pin, int baud);
 
-/**
- * @brief Measures the distance and returns it in millimeters.
- *
- * @return The distance in millimeters.
- */
-float measureDistanceInMillimeters();
+/* Deinitialize / free resources */
+int dyp_uart_deinit(void);
 
-/**
- * @brief Measures the distance and returns it in centimeters.
- *
- * @return The distance in centimeters.
- */
-float measureDistanceInCentimeters();
+/* Blocking read: wait up to timeout_ms for a valid frame and parse distance.
+   If timeout_ms == 0 -> uses default internal timeout (100 ms).
+   Returns:
+     0 on success and writes distance in centimeters to *out_cm (float)
+    -1 on timeout/no-frame
+    -2 on invalid args or not initialized
+*/
+int dyp_uart_read_distance_cm_float(float *out_cm, unsigned timeout_ms);
 
-/**
- * @brief Measures the distance and returns it in inches.
- *
- * @return The distance in inches.
- */
-float measureDistanceInInches();
+/* Integer variant: returns DYP_UART_ERROR on error, otherwise integer cm (rounded) */
+long dyp_uart_read_distance_cm_int(unsigned timeout_ms);
 
-/**
- * @brief Measures the distance and returns it in feet.
- *
- * @return The distance in feet.
- */
-float measureDistanceInFeet();
+/* Convenience: returns true if last read call timed out (no valid frame) */
+bool dyp_uart_last_timeout(void);
 
-/**
- * @brief Detects if an obstacle is within a specified distance.
- *
- * @param unit The unit of distance (MM, CM, INCH, FEET).
- * @param distance The distance threshold.
- * @return true if an obstacle is detected within the distance, false otherwise.
- */
-bool isObstacleDetected(distance_unit_t unit, float distance);
+/* Convenience high-level: object detection against threshold (blocking read),
+   returns 1 if object present (distance <= threshold_cm), 0 if not, negative on error. */
+int dyp_uart_object_detected(float threshold_cm, unsigned timeout_ms);
+
+/* Change baud (reconfigure underlying UART). Returns 0 on success. */
+int dyp_uart_set_baud(int baud);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif // ULTRASONIC_DYPA02_H
+#endif /* DYP_UART_H */

@@ -1,58 +1,34 @@
 #include <Arduino.h>
-#include <SoftwareSerial.h>
+#include <ultrasonic_dypa02.h>
 
-//Pin Configuration
-#define RX_PIN A4  
-#define TX_PIN A5  
-SoftwareSerial dypSerial(RX_PIN, TX_PIN);
+#define RX_PIN A4  // sensor TX -> MCU RX (SoftwareSerial RX)
+#define TX_PIN A5  // sensor RX <- MCU TX (SoftwareSerial TX)
 
-//Constants
-const float DISTANCE_THRESHOLD_CM = 8.0;  // threshold in cm
-
-//Variables
-bool objectDetected = false;
+/* Threshold */
+const float DISTANCE_THRESHOLD_CM = 9.0f;
 
 void setup() {
   Serial.begin(9600);
-  dypSerial.begin(9600);
+  while (!Serial) { delay(10); }
+  Serial.println("DYP-A02YYGDW UART example (library)");
 
-  Serial.println("DYP-A02YYGDW Object Detection Started");
-  delay(500);
+  if (dyp_uart_init(RX_PIN, TX_PIN, 9600) != 0) {
+    Serial.println("dyp_uart_init failed");
+    while (1) delay(1000);
+  }
 }
 
 void loop() {
-  static uint8_t buf[4] = {0,0,0,0};
-
-  while (dypSerial.available() > 0) {
-    // shift old bytes
-    buf[0] = buf[1];
-    buf[1] = buf[2];
-    buf[2] = buf[3];
-    buf[3] = (uint8_t)dypSerial.read();
-
-    // check for valid frame
-    if (buf[0] == 0xFF) {
-      uint16_t raw = ((uint16_t)buf[1] << 8) | buf[2];
-      uint8_t sum = buf[3];
-      uint8_t check = (0xFF + buf[1] + buf[2]) & 0xFF;
-
-      if (check == sum) {
-        float distance_cm = raw / 10.0f;
-
-        //Presence Logic
-        objectDetected = (distance_cm <= DISTANCE_THRESHOLD_CM && distance_cm > 0);
-
-        //Debug Output (optional)
-        Serial.print("Distance: ");
-        Serial.print(distance_cm, 1);
-        Serial.print(" cm  |  Object Detected: ");
-        Serial.println(objectDetected ? "YES" : "NO");
-
-        // reset buffer for next frame
-        buf[0] = buf[1] = buf[2] = buf[3] = 0;
-      }
-    }
+  float distance_cm = 0.0f;
+  int r = dyp_uart_read_distance_cm_float(&distance_cm, 200); // 200 ms timeout
+  if (r == 0) {
+    bool present = (distance_cm > 0.0f && distance_cm <= DISTANCE_THRESHOLD_CM);
+    Serial.print("Distance: ");
+    Serial.print(distance_cm, 1);
+    Serial.print(" cm  | Object: ");
+    Serial.println(present ? "YES" : "NO");
+  } else {
+    Serial.println("Timeout / No valid frame");
   }
-
-  delay(10); // small delay to avoid serial flooding
+  delay(100);
 }

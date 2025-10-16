@@ -1,0 +1,2 @@
+source C:/kowshik/max6675/max6675_espidf/.pio/build/esp32dev/bootloader/gdbinit/symbols
+source C:/kowshik/max6675/max6675_espidf/.pio/build/esp32dev/bootloader/gdbinit/connect

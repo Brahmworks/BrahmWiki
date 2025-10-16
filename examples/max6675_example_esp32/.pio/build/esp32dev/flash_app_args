@@ -1,2 +1,0 @@
---flash_mode dio --flash_freq 40m --flash_size 2MB
-0x10000 max6675_example_esp32.bin

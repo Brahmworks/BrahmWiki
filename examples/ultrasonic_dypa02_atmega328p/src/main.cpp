@@ -1,11 +1,12 @@
 #include <Arduino.h>
 #include <ultrasonic_dypa02.h>
 
+/* PCB-fixed pins */
 #define RX_PIN A4  // sensor TX -> MCU RX (SoftwareSerial RX)
 #define TX_PIN A5  // sensor RX <- MCU TX (SoftwareSerial TX)
 
 /* Threshold */
-const float DISTANCE_THRESHOLD_CM = 9.0f;
+const float DISTANCE_THRESHOLD_CM = 8.0f;
 
 void setup() {
   Serial.begin(9600);
@@ -20,7 +21,7 @@ void setup() {
 
 void loop() {
   float distance_cm = 0.0f;
-  int r = dyp_uart_read_distance_cm_float(&distance_cm, 200); // 200 ms timeout
+  int r = dyp_uart_read_distance_cm_float(&distance_cm, 1000); // 200 ms timeout
   if (r == 0) {
     bool present = (distance_cm > 0.0f && distance_cm <= DISTANCE_THRESHOLD_CM);
     Serial.print("Distance: ");

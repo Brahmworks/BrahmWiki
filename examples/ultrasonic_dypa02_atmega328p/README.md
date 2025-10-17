@@ -24,7 +24,7 @@ Where:
 The library automatically parses these frames and provides the distance in **centimeters** with simple function calls.
 
 It works on:
-*  **Arduino UNO/MEGA/Nano** (via `SoftwareSerial`)
+*  **Arduino UNO/MEGA/ESP32** (via `SoftwareSerial`)
 *  **ESP32** (ESP-IDF) (via UART driver)
 
 ---

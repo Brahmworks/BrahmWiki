@@ -1,4 +1,3 @@
-
 #include <ultrasonic_dypa02.h>
 #include <string.h>
 #include <stdio.h>
@@ -190,6 +189,17 @@ static int platform_read_distance_cm_float(float *out_cm, unsigned timeout_ms) {
     if (!g_initialized || !g_sw) return -2;
     if (!out_cm) return -2;
     g_last_timeout = false;
+
+    // Clear internal rolling buffer before reading
+    g_frame_idx = 0;
+    memset(g_frame_buf, 0, sizeof(g_frame_buf));
+    
+    // Drain SoftwareSerial RX buffer
+    unsigned long flush_start = millis();
+    while (g_sw->available() > 0 && (millis() - flush_start) < 50) {
+        g_sw->read();
+    }
+    
     unsigned long start = millis();
     unsigned long timeout = (timeout_ms == 0) ? 100u : timeout_ms;
 
@@ -234,6 +244,35 @@ static bool platform_last_timeout(void) { return g_last_timeout; }
 
 /* ------------------------ Public wrappers (platform-agnostic) ------------------------ */
 
+/* Flush buffer function - MUST come after platform implementations */
+int dyp_uart_flush_buffer(void) {
+    if (!g_initialized) return DYP_UART_ERROR;
+    
+    // Clear internal rolling buffer
+    g_frame_idx = 0;
+    memset(g_frame_buf, 0, sizeof(g_frame_buf));
+    
+#if defined(ESP_PLATFORM)
+    // ESP-IDF: flush UART hardware buffer
+    uart_flush(g_uart_num);
+    return DYP_UART_OK;
+    
+#elif defined(ARDUINO)
+    // Arduino SoftwareSerial: drain any available bytes
+    if (g_sw) {
+        unsigned long start = millis();
+        // Read and discard for max 50ms
+        while (g_sw->available() > 0 && (millis() - start) < 50) {
+            g_sw->read();
+        }
+    }
+    return DYP_UART_OK;
+    
+#else
+    return DYP_UART_ERROR;
+#endif
+}
+
 /* Initialize the sensor */
 int dyp_uart_init(int rx_pin, int tx_pin, int baud) {
 #if defined(ESP_PLATFORM) || defined(ARDUINO)
@@ -263,7 +302,9 @@ int dyp_uart_set_baud(int baud) {
 #endif
 }
 
-/* Blocking read float cm */
+/* ------------------------ Distance reading functions (all units) ------------------------ */
+
+/* Centimeters (float) */
 int dyp_uart_read_distance_cm_float(float *out_cm, unsigned timeout_ms) {
 #if defined(ESP_PLATFORM) || defined(ARDUINO)
     return platform_read_distance_cm_float(out_cm, timeout_ms);
@@ -273,12 +314,80 @@ int dyp_uart_read_distance_cm_float(float *out_cm, unsigned timeout_ms) {
 #endif
 }
 
-/* Integer variant — returns long (DYP_UART_ERROR on failure) */
+/* Inches (float) */
+int dyp_uart_read_distance_inch_float(float *out_inch, unsigned timeout_ms) {
+    float cm = 0.0f;
+    int r = dyp_uart_read_distance_cm_float(&cm, timeout_ms);
+    if (r != 0) return r;
+    if (out_inch) *out_inch = cm * DYP_CM_TO_INCH;
+    return 0;
+}
+
+/* Feet (float) */
+int dyp_uart_read_distance_feet_float(float *out_feet, unsigned timeout_ms) {
+    float cm = 0.0f;
+    int r = dyp_uart_read_distance_cm_float(&cm, timeout_ms);
+    if (r != 0) return r;
+    if (out_feet) *out_feet = cm * DYP_CM_TO_FEET;
+    return 0;
+}
+
+/* Meters (float) */
+int dyp_uart_read_distance_meter_float(float *out_meter, unsigned timeout_ms) {
+    float cm = 0.0f;
+    int r = dyp_uart_read_distance_cm_float(&cm, timeout_ms);
+    if (r != 0) return r;
+    if (out_meter) *out_meter = cm * DYP_CM_TO_METER;
+    return 0;
+}
+
+int dyp_uart_read_distance_mm_float(float *out_mm, unsigned timeout_ms) {
+    float cm = 0.0f;
+    int r = dyp_uart_read_distance_cm_float(&cm, timeout_ms);
+    if (r != 0) return r;
+    if (out_mm) *out_mm = cm * DYP_CM_TO_MM;
+    return 0;
+}
+
+/* ------------------------ Integer variants ------------------------ */
+
+/* Centimeters (integer) */
 long dyp_uart_read_distance_cm_int(unsigned timeout_ms) {
     float cm = 0.0f;
     int r = dyp_uart_read_distance_cm_float(&cm, timeout_ms);
     if (r != 0) return DYP_UART_ERROR;
     return (long)(cm + 0.5f);
+}
+
+/* Inches (integer) */
+long dyp_uart_read_distance_inch_int(unsigned timeout_ms) {
+    float inch = 0.0f;
+    int r = dyp_uart_read_distance_inch_float(&inch, timeout_ms);
+    if (r != 0) return DYP_UART_ERROR;
+    return (long)(inch + 0.5f);
+}
+
+/* Feet (integer) */
+long dyp_uart_read_distance_feet_int(unsigned timeout_ms) {
+    float feet = 0.0f;
+    int r = dyp_uart_read_distance_feet_float(&feet, timeout_ms);
+    if (r != 0) return DYP_UART_ERROR;
+    return (long)(feet + 0.5f);
+}
+
+/* Meters (integer) */
+long dyp_uart_read_distance_meter_int(unsigned timeout_ms) {
+    float meter = 0.0f;
+    int r = dyp_uart_read_distance_meter_float(&meter, timeout_ms);
+    if (r != 0) return DYP_UART_ERROR;
+    return (long)(meter + 0.5f);
+}
+
+long dyp_uart_read_distance_mm_int(unsigned timeout_ms) {
+    float mm = 0.0f;
+    int r = dyp_uart_read_distance_mm_float(&mm, timeout_ms);
+    if (r != 0) return DYP_UART_ERROR;
+    return (long)(mm + 0.5f);
 }
 
 /* last timeout query */
@@ -290,10 +399,43 @@ bool dyp_uart_last_timeout(void) {
 #endif
 }
 
-/* Convenience: check object presence against threshold (blocking read) */
-int dyp_uart_object_detected(float threshold_cm, unsigned timeout_ms) {
+/* ------------------------ Object detection functions (all units) ------------------------ */
+
+/* Centimeters */
+int dyp_uart_object_detected_cm(float threshold_cm, unsigned timeout_ms) {
     float cm = 0.0f;
     int r = dyp_uart_read_distance_cm_float(&cm, timeout_ms);
     if (r != 0) return -1;
     return (cm > 0.0f && cm <= threshold_cm) ? 1 : 0;
+}
+
+/* Inches */
+int dyp_uart_object_detected_inch(float threshold_inch, unsigned timeout_ms) {
+    float inch = 0.0f;
+    int r = dyp_uart_read_distance_inch_float(&inch, timeout_ms);
+    if (r != 0) return -1;
+    return (inch > 0.0f && inch <= threshold_inch) ? 1 : 0;
+}
+
+/* Feet */
+int dyp_uart_object_detected_feet(float threshold_feet, unsigned timeout_ms) {
+    float feet = 0.0f;
+    int r = dyp_uart_read_distance_feet_float(&feet, timeout_ms);
+    if (r != 0) return -1;
+    return (feet > 0.0f && feet <= threshold_feet) ? 1 : 0;
+}
+
+/* Meters */
+int dyp_uart_object_detected_meter(float threshold_meter, unsigned timeout_ms) {
+    float meter = 0.0f;
+    int r = dyp_uart_read_distance_meter_float(&meter, timeout_ms);
+    if (r != 0) return -1;
+    return (meter > 0.0f && meter <= threshold_meter) ? 1 : 0;
+}
+
+int dyp_uart_object_detected_mm(float threshold_mm, unsigned timeout_ms) {
+    float mm = 0.0f;
+    int r = dyp_uart_read_distance_mm_float(&mm, timeout_ms);
+    if (r != 0) return -1;
+    return (mm > 0.0f && mm <= threshold_mm) ? 1 : 0;
 }

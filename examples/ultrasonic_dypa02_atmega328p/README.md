@@ -1,219 +1,276 @@
-#  DYP-A02YYGDW UART Ultrasonic Sensor Library
 
-**Cross-Platform Embedded Library for Arduino (UNO/MEGA) and ESP-IDF (ESP32)**
+# 🧭 DYP-A02YY Ultrasonic Sensor – UART Library
 
----
-
-##  Overview
-
-This library provides a simple and unified API for reading distance measurements from the **DYP-A02YYGDW ultrasonic distance sensor (UART version)**.
-
-The DYP-A02YYGDW continuously sends distance data over a serial interface (`9600 bps`) in the form of 4-byte frames:
-
-```
-
-FF XX YY SUM
-
-```
-
-Where:
-* `0xFF` → frame header
-* `XX YY` → 16-bit distance in millimeters
-* `SUM = (0xFF + XX + YY) & 0xFF` (Checksum)
-
-The library automatically parses these frames and provides the distance in **centimeters** with simple function calls.
-
-It works on:
-*  **Arduino UNO/MEGA/ESP32** (via `SoftwareSerial`)
-*  **ESP32** (ESP-IDF) (via UART driver)
+This library provides a simple and reliable interface to communicate with the **DYP-A02YY ultrasonic distance sensor** over UART.
+It supports **Arduino** and **ESP-IDF (ESP32)** platforms.
 
 ---
 
-##  Integration
+## 📘 Overview
 
-###  Folder Structure (for PlatformIO or Manual Use)
+The **DYP-A02YY ultrasonic sensor** outputs distance data continuously via UART (serial communication).
+This library reads that data, validates the frame, and converts it into **centimeters, millimeters, meters, feet, or inches** — whichever unit you prefer.
 
-For **PlatformIO**, place the files like this:
+It also includes helper functions for **object detection** based on a distance threshold.
 
+---
+
+## ⚙️ Features
+
+* Easy initialization using UART pins
+* Supports multiple units: **mm, cm, m, inch, feet**
+* Threshold-based object detection (`object_detected_*`)
+* Timeout detection if no valid data is received
+* Flush function to clear the internal buffer
+* Works on both **Arduino** and **ESP-IDF (ESP32)** platforms
+
+---
+
+## 📦 Installation
+
+1. Copy the files `ultrasonic_dypa02.h` and `ultrasonic_dypa02.cpp` into your project’s `lib/` or `src/` directory.
+2. Include the header in your sketch or main file:
+
+   ```cpp
+   #include <ultrasonic_dypa02.h>
+   ```
+
+---
+
+## 🪝 Pin Connections
+
+| DYP Sensor Pin | Description     | Connect To MCU Pin     |
+| -------------- | --------------- | ---------------------- |
+| **VCC**        | Power (5V)      | 5V (or 3.3V for ESP32) |
+| **GND**        | Ground          | GND                    |
+| **TX**         | Sensor → MCU RX | RX pin you define      |
+| **RX**         | MCU TX → Sensor | TX pin you define      |
+
+---
+
+## 🧠 Library Usage
+
+Here’s a breakdown of all the **user-accessible functions** you’ll use.
+
+---
+
+### 🟢 1. Initialization
+
+```cpp
+int dyp_uart_init(int rx_pin, int tx_pin, int baud);
 ```
 
-project/
-├── platformio.ini
-├── src/
-│   └── main.cpp
-└── lib/
-└── ultrasonic\_dypa02/
-├── ultrasonic\_dypa02.h
-└── ultrasonic\_dypa02.cpp
+**Purpose:**
+Initializes the sensor with the specified RX/TX pins and baud rate.
 
+**Parameters:**
+
+* `rx_pin` → MCU pin connected to sensor TX
+* `tx_pin` → MCU pin connected to sensor RX
+* `baud` → UART baud rate (use `9600` for DYP sensors, or `0` for default)
+
+**Returns:**
+`0` on success, negative on failure.
+
+🧩 *Example:*
+
+```cpp
+dyp_uart_init(A4, A5, 9600);
 ```
-PlatformIO will automatically include everything under `lib/`.
 
-For **ESP-IDF**, place the files in the `components` folder:
+---
 
+### 🔴 2. Deinitialization
+
+```cpp
+int dyp_uart_deinit(void);
 ```
 
-components/ultrasonic\_dypa02/
-├── ultrasonic\_dypa02.cpp
-├── ultrasonic\_dypa02.h
-└── CMakeLists.txt
+**Purpose:**
+Safely releases UART resources if you want to stop using the sensor or reinitialize it.
 
-````
+---
 
-And then add the component to your main `CMakeLists.txt`:
-```cmake
-idf_component_register(SRCS "main.c"
-                       INCLUDE_DIRS "."
-                       REQUIRES ultrasonic_dypa02)
-````
+### ⚡ 3. Read Distance (Float Output)
 
------
+All read functions wait until a valid data frame is received or the timeout expires.
 
-##  Key API Functions
+| Function                                                                        | Unit        | Example                                           |
+| ------------------------------------------------------------------------------- | ----------- | ------------------------------------------------- |
+| `int dyp_uart_read_distance_mm_float(float *out_mm, unsigned timeout_ms)`       | millimeters | `dyp_uart_read_distance_mm_float(&dist, 100);`    |
+| `int dyp_uart_read_distance_cm_float(float *out_cm, unsigned timeout_ms)`       | centimeters | `dyp_uart_read_distance_cm_float(&dist, 100);`    |
+| `int dyp_uart_read_distance_meter_float(float *out_meter, unsigned timeout_ms)` | meters      | `dyp_uart_read_distance_meter_float(&dist, 100);` |
+| `int dyp_uart_read_distance_feet_float(float *out_feet, unsigned timeout_ms)`   | feet        | `dyp_uart_read_distance_feet_float(&dist, 100);`  |
+| `int dyp_uart_read_distance_inch_float(float *out_inch, unsigned timeout_ms)`   | inches      | `dyp_uart_read_distance_inch_float(&dist, 100);`  |
 
-| Function | Description |
-| :--- | :--- |
-| `int dyp_uart_init(int rx_pin, int tx_pin, int baud)` | Initialize UART communication. Use `0` for default `9600` baud. |
-| `int dyp_uart_deinit(void)` | Stop UART communication. |
-| `int dyp_uart_read_distance_cm_float(float *out_cm, unsigned timeout_ms)` | Blocking read — waits for a valid frame (returns `0` on success). |
-| `long dyp_uart_read_distance_cm_int(unsigned timeout_ms)` | Returns integer cm or `DYP_UART_ERROR` on failure. |
-| `int dyp_uart_object_detected(float threshold_cm, unsigned timeout_ms)` | Returns `1` if object ≤ threshold, `0` otherwise. |
-| `bool dyp_uart_last_timeout(void)` | True if last read timed out (no data). |
-| `int dyp_uart_set_baud(int baud)` | Change the UART baudrate. Default = `9600`. |
+**Returns:**
 
------
+* `0` on success (valid reading stored in variable)
+* `-1` on timeout
+* `-2` if not initialized or invalid arguments
 
-## 🪜 How to Use
+---
 
-###  Arduino Example (UNO/MEGA)
+### 🔢 4. Read Distance (Integer Output)
 
-This example uses `SoftwareSerial` (handled internally by the library) on an Arduino Uno or Mega. **Note the updated header file include.**
+Same as float, but returns an integer directly (rounded).
+
+| Function                                                     | Unit |
+| ------------------------------------------------------------ | ---- |
+| `long dyp_uart_read_distance_mm_int(unsigned timeout_ms)`    |      |
+| `long dyp_uart_read_distance_cm_int(unsigned timeout_ms)`    |      |
+| `long dyp_uart_read_distance_meter_int(unsigned timeout_ms)` |      |
+| `long dyp_uart_read_distance_feet_int(unsigned timeout_ms)`  |      |
+| `long dyp_uart_read_distance_inch_int(unsigned timeout_ms)`  |      |
+
+**Example:**
+
+```cpp
+long dist_cm = dyp_uart_read_distance_cm_int(100);
+```
+
+---
+
+### 🚨 5. Object Detection (Threshold-based)
+
+Check if an object is present within a certain range.
+Returns:
+
+* `1` → Object detected (within threshold)
+* `0` → No object detected (beyond threshold)
+* `-1` → Error or timeout
+
+| Function                                                                         | Threshold Unit | Example                                      |
+| -------------------------------------------------------------------------------- | -------------- | -------------------------------------------- |
+| `int dyp_uart_object_detected_mm(float threshold_mm, unsigned timeout_ms)`       | mm             | `dyp_uart_object_detected_mm(80.0f, 100);`   |
+| `int dyp_uart_object_detected_cm(float threshold_cm, unsigned timeout_ms)`       | cm             | `dyp_uart_object_detected_cm(10.0f, 100);`   |
+| `int dyp_uart_object_detected_meter(float threshold_meter, unsigned timeout_ms)` | m              | `dyp_uart_object_detected_meter(0.1f, 100);` |
+| `int dyp_uart_object_detected_feet(float threshold_feet, unsigned timeout_ms)`   | ft             | `dyp_uart_object_detected_feet(0.3f, 100);`  |
+| `int dyp_uart_object_detected_inch(float threshold_inch, unsigned timeout_ms)`   | inch           | `dyp_uart_object_detected_inch(4.0f, 100);`  |
+
+---
+
+### 🧹 6. Flush Buffer
+
+```cpp
+int dyp_uart_flush_buffer(void);
+```
+
+Clears any pending or corrupted bytes in the internal UART buffer.
+Call this if you suspect noisy readings or after long idle times.
+
+---
+
+### 🕒 7. Timeout Check
+
+```cpp
+bool dyp_uart_last_timeout(void);
+```
+
+Returns `true` if the last distance read timed out (no valid frame received).
+
+---
+
+### ⚙️ 8. Change Baud Rate (Optional)
+
+```cpp
+int dyp_uart_set_baud(int baud);
+```
+
+Reconfigures the UART baud rate dynamically without reinitializing.
+
+---
+
+## 💡 Example Explained
+
+**Example File:**
 
 ```cpp
 #include <Arduino.h>
-#include "ultrasonic_dypa02.h"
+#include <ultrasonic_dypa02.h>
 
-#define RX_PIN A4   // connect to sensor TX
-#define TX_PIN A5   // connect to sensor RX
-
+#define RX_PIN A4
+#define TX_PIN A5
 const float THRESHOLD_CM = 8.0f;
 
 void setup() {
   Serial.begin(9600);
-  Serial.println("DYP-A02YYGDW UART example");
-
-  if (dyp_uart_init(RX_PIN, TX_PIN, 9600) != 0) {
-    Serial.println("Failed to init DYP UART");
-    while (1);
-  }
+  dyp_uart_init(RX_PIN, TX_PIN, 9600);
 }
 
 void loop() {
   float distance_cm = 0.0f;
-  int r = dyp_uart_read_distance_cm_float(&distance_cm, 200); // 200 ms timeout
+  int res_cm = dyp_uart_read_distance_cm_float(&distance_cm, 100);
 
-  if (r == 0) {
-    bool detected = distance_cm <= THRESHOLD_CM && distance_cm > 0;
+  if (res_cm == 0) {
     Serial.print("Distance: ");
-    Serial.print(distance_cm, 1);
-    Serial.print(" cm | Object: ");
-    Serial.println(detected ? "YES" : "NO");
+    Serial.print(distance_cm, 2);
+    Serial.println(" cm");
+
+    bool detected = (distance_cm > 0.0f && distance_cm <= THRESHOLD_CM);
+    if (detected)
+      Serial.println("🟢 Object DETECTED within 8 cm!");
+    else
+      Serial.println("⚪ No object detected (beyond 8 cm)");
   } else {
-    Serial.println("No valid frame / timeout");
+    Serial.println("TIMEOUT/ERROR - No valid frame");
   }
 
-  delay(100);
+  delay(500);
 }
 ```
 
-| DYP-A02YYGDW Pin | Arduino Pin | Direction |
-| :--- | :--- | :--- |
-| **VCC** | 5V | Power |
-| **GND** | GND | Ground |
-| **TX** | A4 | Sensor → MCU |
-| **RX** | A5 | MCU → Sensor |
+### 🔍 Step-by-Step Breakdown
 
->  **Ensure your sensor is the UART version** (sends serial frames). The PWM version requires a different (trigger/echo) library.
+1. **Initialize UART**
+   The sensor starts communicating over the defined RX/TX pins at 9600 baud.
 
------
+2. **Read Distance**
+   `dyp_uart_read_distance_cm_float()` waits up to 100 ms for a valid frame and stores the distance in centimeters.
 
-###  ESP32 Example (ESP-IDF)
+3. **Threshold Check**
+   If the measured distance ≤ 8 cm, it reports an object as **detected**.
 
-This example uses the built-in ESP-IDF UART driver. **Note the updated header file include.**
+4. **Print Results**
+   Displays the distance in various units and indicates detection status.
 
-```c
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
-#include "esp_log.h"
-#include "ultrasonic_dypa02.h"
+5. **Loop Continuously**
+   The loop repeats every 500 ms, continuously monitoring the distance.
 
-#define DYP_RX_GPIO 19  // connect to sensor TX
-#define DYP_TX_GPIO 18  // connect to sensor RX
+---
 
-static const char *TAG = "DYP_UART_EX";
+## 🧭 Notes
 
-void app_main(void)
-{
-    ESP_LOGI(TAG, "Starting DYP UART demo...");
+* Default UART baud rate: **9600**
+* Works best when the sensor faces a flat surface directly.
+* Avoid placing the sensor near strong ultrasonic or electrical noise sources.
+* If readings are unstable, call `dyp_uart_flush_buffer()` before reading again.
+* Always initialize the sensor **before** calling any read functions.
 
-    if (dyp_uart_init(DYP_RX_GPIO, DYP_TX_GPIO, 9600) != 0) {
-        ESP_LOGE(TAG, "Initialization failed");
-        return;
-    }
+---
 
-    while (1) {
-        float cm = 0.0f;
-        if (dyp_uart_read_distance_cm_float(&cm, 200) == 0) {
-            ESP_LOGI(TAG, "Distance: %.1f cm", cm);
-        } else {
-            ESP_LOGW(TAG, "Timeout / no frame");
-        }
-        vTaskDelay(pdMS_TO_TICKS(200));
-    }
-}
+## 🧩 Example Outputs
+
+```
+----------------------------------------
+Distance: 93.5 mm  |  9.35 cm  |  0.093 m  |  0.306 ft
+⚪ No object detected (beyond 8 cm)
+
+----------------------------------------
+Distance: 55.2 mm  |  5.52 cm  |  0.055 m  |  0.181 ft
+🟢 Object DETECTED within 8 cm!
 ```
 
-| DYP-A02YYGDW Pin | ESP32 Pin | Direction |
-| :--- | :--- | :--- |
-| **VCC** | 5V | Power |
-| **GND** | GND | Ground |
-| **TX** | GPIO19 | Sensor → MCU |
-| **RX** | GPIO18 | MCU → Sensor |
+---
 
->  **Use a level shifter or voltage divider for sensor TX → ESP32 RX**
-> (Sensor TX outputs \~5 V; ESP32 is 3.3 V logic).
+## ✅ Quick Summary
 
------
+| Action                      | Function                                    |
+| --------------------------- | ------------------------------------------- | 
+| Initialize sensor           | `dyp_uart_init(A4, A5, 9600)`               |  
+| Read distance (cm)          | `dyp_uart_read_distance_cm_float(&cm, 100)` |  
+| Detect object (within 8 cm) | `dyp_uart_object_detected_cm(8.0f, 100)`    |  
 
-##  Application Notes
+---
 
-### 1\. Frame Rate & Timeout
 
-The sensor sends new frames every **\~100 ms**.
-Set `timeout_ms ≥ 100 ms` (e.g., 150–200 ms) for reliable reading.
-
-### 2\. Speed / Performance
-
-The library uses **blocking reads with timeouts**. For real-time tasks, call `dyp_uart_read_distance_cm_float()` from a dedicated task (ESP-IDF) or loop (Arduino).
-
-### 3\. Object Detection
-
-Use the built-in helper for simple object presence detection:
-
-```c
-int object = dyp_uart_object_detected(8.0f, 200);
-if (object > 0) {
-  Serial.println("Object detected!");
-}
-```
-
-### 4\. Power & Voltage
-
-Typical supply: **5 V**, current ≈ **15–20 mA**. If using ESP32, you *must* add a level shifter on the sensor TX line to prevent damage to the ESP32's 3.3 V RX pin.
-
-### 5\. Data Validity
-
-  * Maximum range: **\~450 cm**
-  * Typical noise: **±1 cm**
-
------

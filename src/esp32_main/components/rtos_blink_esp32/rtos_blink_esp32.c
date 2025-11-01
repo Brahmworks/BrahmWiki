@@ -21,11 +21,7 @@ void blink_task(void *pvParameter)
     iot_protocol_handshake();
 
     while(1) {
-        gpio_set_level(BLINK_GPIO, 0);
-        iot_protocol_send_health_check();
         iot_protocol_process_incoming();
-        vTaskDelay(5000 / portTICK_PERIOD_MS);
-        gpio_set_level(BLINK_GPIO, 1);
         vTaskDelay(100 / portTICK_PERIOD_MS);
     }
 }

@@ -34,63 +34,72 @@ The handshake establishes initial communication and authentication between the d
 
 Following RFC health check standards for consistent monitoring.
 
+**Request:**
 ```json
 {
   "messageType": "health_check",
   "version": "1.0",
-  "timestamp": "2025-11-01T16:40:00.000Z",
+  "deviceId": "device_12345"
+}
+```
+
+**Response:**
+```json
+{
+  "messageType": "health_check",
+  "version": "1.0",
   "deviceId": "device_12345",
   "status": "pass",
   "statusCode": 200,
-  "serviceId": "f03e522f-1f44-4062-9b55-9587f91c9c41",
-  "description": "IoT sensor device health status",
-  "releaseId": "2.1.4",
-  "uptime": 86400,
-  "lastSeen": "2025-11-01T16:39:30.000Z",
   "checks": {
-    "connectivity:wifi": [
+    "sensor:sensor_1": [
       {
-        "componentType": "network",
-        "status": "pass",
-        "observedValue": -45,
-        "observedUnit": "dBm",
-        "time": "2025-11-01T16:40:00.000Z",
-        "output": "Strong signal strength"
-      }
-    ],
-    "sensor:temperature": [
-      {
-        "componentId": "temp_sensor_01",
+        "componentId": "sensor_1",
         "componentType": "sensor",
         "status": "pass",
-        "observedValue": 23.5,
-        "observedUnit": "celsius",
-        "time": "2025-11-01T16:40:00.000Z"
+        "observedValue": 75.0
       }
     ],
-    "memory:utilization": [
+    "sensor:sensor_2": [
       {
-        "componentType": "system",
-        "status": "warn",
-        "observedValue": 85,
-        "observedUnit": "percent",
-        "time": "2025-11-01T16:40:00.000Z",
-        "output": "Memory usage approaching threshold"
-      }
-    ],
-    "battery:level": [
-      {
-        "componentType": "power",
+        "componentId": "sensor_2",
+        "componentType": "sensor",
         "status": "pass",
-        "observedValue": 78,
-        "observedUnit": "percent",
-        "time": "2025-11-01T16:40:00.000Z"
+        "observedValue": 25.0
+      }
+    ],
+    "sensor:sensor_3": [
+      {
+        "componentId": "sensor_3",
+        "componentType": "sensor",
+        "status": "pass",
+        "observedValue": 15.2
+      }
+    ],
+    "actuator:actuator_1": [
+      {
+        "componentId": "actuator_1",
+        "componentType": "actuator",
+        "status": "pass",
+        "observedValue": "off"
+      }
+    ],
+    "actuator:actuator_2": [
+      {
+        "componentId": "actuator_2",
+        "componentType": "actuator",
+        "status": "pass",
+        "observedValue": "closed"
+      }
+    ],
+    "actuator:actuator_3": [
+      {
+        "componentId": "actuator_3",
+        "componentType": "actuator",
+        "status": "pass",
+        "observedValue": "off"
       }
     ]
-  },
-  "links": {
-    "self": "https://api.example.com/device/12345/health",
-    "metrics": "https://api.example.com/device/12345/metrics"
   }
 }
 ```

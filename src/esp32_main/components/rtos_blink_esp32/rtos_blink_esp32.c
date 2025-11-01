@@ -3,6 +3,7 @@
 #include "freertos/task.h"
 #include "driver/gpio.h"
 #include "uart_standard.h"
+#include "iot_protocol.h"
 
 #define BLINK_GPIO 2 // Using a hardcoded value as this is now a library
 
@@ -16,18 +17,21 @@ void blink_task(void *pvParameter)
     io_conf.pull_up_en = 0;
     gpio_config(&io_conf);
 
+    iot_protocol_init(UART_0_PROG);
+    iot_protocol_handshake();
+
     while(1) {
         gpio_set_level(BLINK_GPIO, 0);
-        uart_write(UART_0_PROG, "LED OFF\n");
-        vTaskDelay(1000 / portTICK_PERIOD_MS);
+        iot_protocol_send_health_check();
+        iot_protocol_process_incoming();
+        vTaskDelay(5000 / portTICK_PERIOD_MS);
         gpio_set_level(BLINK_GPIO, 1);
-        uart_write(UART_0_PROG, "LED ON\n");
-        vTaskDelay(1000 / portTICK_PERIOD_MS);
+        vTaskDelay(100 / portTICK_PERIOD_MS);
     }
 }
 
 void init_blink_task(void)
 {
     uart_init(UART_0_PROG, 115200);
-    xTaskCreate(&blink_task, "blink_task", 2048, NULL, 5, NULL);
+    xTaskCreate(&blink_task, "blink_task", 4096, NULL, 5, NULL);
 }

@@ -27,7 +27,6 @@ The following is a brief overview of the JSON architecture for each message type
 
 #### Handshake
 
-
 **Request:**
 ```json
 {

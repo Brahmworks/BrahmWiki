@@ -1,0 +1,2 @@
+source C:/kowshik/max31865/max31865_espidf/.pio/build/esp32dev/gdbinit/symbols
+source C:/kowshik/max31865/max31865_espidf/.pio/build/esp32dev/gdbinit/connect

@@ -1,0 +1,2 @@
+source C:/dev/brahm_works/pid_esp32/.pio/build/esp32dev/bootloader/gdbinit/symbols
+source C:/dev/brahm_works/pid_esp32/.pio/build/esp32dev/bootloader/gdbinit/connect

@@ -1,0 +1,13 @@
+# Target labels
+ bootloader
+# Source files and their labels
+C:/dev/brahm_works/pid_esp32/.pio/build/esp32dev/CMakeFiles/bootloader
+C:/dev/brahm_works/pid_esp32/.pio/build/esp32dev/CMakeFiles/bootloader.rule
+C:/dev/brahm_works/pid_esp32/.pio/build/esp32dev/CMakeFiles/bootloader-complete.rule
+C:/dev/brahm_works/pid_esp32/.pio/build/esp32dev/bootloader-prefix/src/bootloader-stamp/bootloader-build.rule
+C:/dev/brahm_works/pid_esp32/.pio/build/esp32dev/bootloader-prefix/src/bootloader-stamp/bootloader-configure.rule
+C:/dev/brahm_works/pid_esp32/.pio/build/esp32dev/bootloader-prefix/src/bootloader-stamp/bootloader-download.rule
+C:/dev/brahm_works/pid_esp32/.pio/build/esp32dev/bootloader-prefix/src/bootloader-stamp/bootloader-install.rule
+C:/dev/brahm_works/pid_esp32/.pio/build/esp32dev/bootloader-prefix/src/bootloader-stamp/bootloader-mkdir.rule
+C:/dev/brahm_works/pid_esp32/.pio/build/esp32dev/bootloader-prefix/src/bootloader-stamp/bootloader-patch.rule
+C:/dev/brahm_works/pid_esp32/.pio/build/esp32dev/bootloader-prefix/src/bootloader-stamp/bootloader-update.rule

@@ -52,6 +52,10 @@ nav:
     - 'Communication':
       - 'Standard UART': 'libraries/uart_standard.md'
       - 'IoT Protocol': 'iot_communication_protocol.md'
+    - 'Sensors':
+      - 'MAX6675 K-Type': 'libraries/MAX_6675-k-type-thermo.md'
+      - 'MAX31865 PT100': 'libraries/MAX31865_PT100-thermo.md'
+      - 'Ultrasonic DYP-A02': 'libraries/ultrasonic_dypa02.md'
   - 'Microcontrollers':
     - 'Overview': 'microcontrollers/index.md'
     - 'ESP32': 'microcontrollers/esp32.md'

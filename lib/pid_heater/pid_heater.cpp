@@ -8,6 +8,14 @@
 #include <string.h>
 #include <math.h>
 
+// --- Add platform-specific includes for math ---
+#if defined(ESP_PLATFORM)
+  #include "esp_idf_version.h"
+#elif defined(ARDUINO)
+  #include <Arduino.h> // For lrint
+#endif
+// --- End add ---
+
 struct pid_heater_s {
     pid_heater_tune_t tune;
     pid_ctrl_mode_t ctrl_mode;
@@ -23,6 +31,11 @@ struct pid_heater_s {
     double last_error;
     int last_output;       // most recent integer output
     bool inited;
+
+    // --- Added for non-blocking manager ---
+    uint32_t window_start_ms;
+    uint32_t current_on_ms;
+    float last_measured_c; // Store last good temp
 };
 
 // Create new instance (heap-allocated)
@@ -36,6 +49,11 @@ pid_heater_handle_t pid_heater_create(void) {
         h->inited = false;
         // default tune
         h->tune.Kp = 1.0f; h->tune.Ki = 0.0f; h->tune.Kd = 0.0f; h->tune.mode = PID_CTRL_PI;
+        
+        // Init non-blocking fields
+        h->window_start_ms = 0;
+        h->current_on_ms = 0;
+        h->last_measured_c = NAN;
     }
     return h;
 }
@@ -45,6 +63,11 @@ void pid_heater_reset(pid_heater_handle_t h) {
     h->i_term = 0.0;
     h->last_error = 0.0;
     h->last_output = h->out_min;
+    
+    // Reset non-blocking fields
+    h->window_start_ms = 0;
+    h->current_on_ms = 0;
+    h->last_measured_c = NAN;
 }
 
 void pid_heater_init_manual(pid_heater_handle_t h,
@@ -89,8 +112,8 @@ static inline double clamp_double(double v, double lo, double hi) {
 
 /**
  * pid_heater_update
- *  - measured_c: measured temperature in Celsius
- *  - dt_ms: elapsed milliseconds since last update (use configured update_period_ms if fixed)
+ * - measured_c: measured temperature in Celsius
+ * - dt_ms: elapsed milliseconds since last update (use configured update_period_ms if fixed)
  * Returns integer output in [out_min..out_max]
  */
 int pid_heater_update(pid_heater_handle_t h, float measured_c, uint32_t dt_ms) {
@@ -168,3 +191,94 @@ int pid_heater_frac_to_output(pid_heater_handle_t h, float fraction) {
     double r = (double)h->out_min + (double)(h->out_max - h->out_min) * (double)fraction;
     return clamp_int((int)lrint(r), h->out_min, h->out_max);
 }
+
+// --- Add extern C wrapper for C++ file ---
+extern "C" {
+
+float pid_heater_get_last_output_fraction(pid_heater_handle_t h) {
+    if (!h || !h->inited) return 0.0f;
+    if (h->out_max == h->out_min) return 0.0f;
+    
+    double frac = (double)(h->last_output - h->out_min) / (double)(h->out_max - h->out_min);
+    return (float)clamp_double(frac, 0.0, 1.0);
+}
+
+int pid_heater_get_last_output(pid_heater_handle_t h) {
+    if (!h) return 0;
+    return h->last_output;
+}
+
+uint32_t pid_heater_compute_on_ms(pid_heater_handle_t h, float measured_c, uint32_t window_ms, uint32_t dt_ms) {
+    if (!h) return 0;
+    // call existing update (this updates integrator, last_error and last_output)
+    int out = pid_heater_update(h, measured_c, dt_ms);
+    
+    // ensure in range
+    if (out < h->out_min) out = h->out_min;
+    if (out > h->out_max) out = h->out_max;
+    
+    // compute fraction w.r.t configured range (out_min..out_max)
+    double fraction = 0.0;
+    if (h->out_max > h->out_min) {
+        fraction = (double)(out - h->out_min) / (double)(h->out_max - h->out_min);
+        if (fraction < 0.0) fraction = 0.0;
+        if (fraction > 1.0) fraction = 1.0;
+    }
+    
+    uint32_t on_ms = (uint32_t)lrint(fraction * (double)window_ms);
+    
+    // Save last_output (already done by pid_heater_update) but ensure consistency:
+    h->last_output = out;
+    return on_ms;
+}
+
+
+/* --- NEW NON-BLOCKING MANAGER --- */
+
+bool pid_heater_manage_window(pid_heater_handle_t h,
+                              uint32_t now_ms,
+                              float current_temp,
+                              void (*ssr_set_callback)(bool))
+{
+    if (!h || !ssr_set_callback) return false;
+
+    // Store the last good temperature
+    if (isfinite(current_temp)) {
+        h->last_measured_c = current_temp;
+    }
+    float temp_to_use = isfinite(h->last_measured_c) ? h->last_measured_c : 0.0f;
+
+    uint32_t elapsed = now_ms - h->window_start_ms;
+    bool new_window = false;
+
+    // 1. Check if window is complete
+    if (elapsed >= h->window_period_ms) {
+        // Start a new window
+        new_window = true;
+
+        // Calculate the on_ms for this new window
+        h->current_on_ms = pid_heater_compute_on_ms(h, 
+                                                  temp_to_use, 
+                                                  h->window_period_ms, 
+                                                  h->update_period_ms);
+        
+        // Reset window timing
+        h->window_start_ms = now_ms;
+        elapsed = 0;
+
+        // Ensure SSR is OFF at the start
+        ssr_set_callback(false);
+    }
+
+    // 2. Drive SSR based on state for the current window
+    if (h->current_on_ms > 0 && elapsed < h->current_on_ms) {
+        ssr_set_callback(true);
+    } else {
+        ssr_set_callback(false);
+    }
+
+    return new_window;
+}
+
+
+} // extern "C"

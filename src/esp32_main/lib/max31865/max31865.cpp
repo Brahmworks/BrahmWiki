@@ -7,6 +7,9 @@
  *
  * - Use C-style functions only. Header uses extern "C" so main.c can link.
  *
+ * - ESP-IDF: This version is THREAD-SAFE. It uses a recursive mutex
+ * to protect the internal state from concurrent task access.
+ *
  * CAUTION (copy/paste to README):
  * - ESP-IDF: avoid SPI_DEVICE_HALFDUPLEX + DMA + MOSI+MISO transactions.
  * This library uses full-duplex device flags and robust transfer paths.
@@ -35,11 +38,39 @@
   #include "esp_rom_sys.h" /* esp_rom_delay_us */
   #include "esp_heap_caps.h"
   #include "esp_log.h"
+  // --- THREAD-SAFETY ADDITIONS ---
+  #include "freertos/FreeRTOS.h"
+  #include "freertos/semphr.h"
+  // --- END THREAD-SAFETY ---
 #elif defined(ARDUINO)
   #include <Arduino.h>
   #include <SPI.h>
 #else
   #error "Either ESP_PLATFORM or ARDUINO must be defined"
+#endif
+
+/* ------------------ Thread-Safety Mutex (ESP-IDF Only) ------------------ */
+
+#if defined(ESP_PLATFORM)
+    // We use a recursive mutex so that functions like `read_safe` can call
+    // other public functions (like `read_c_float`) without deadlocking.
+    static SemaphoreHandle_t s_max31865_mutex = NULL;
+
+    #define MAX31865_MUTEX_TAKE() do { \
+        if (s_max31865_mutex) { \
+            xSemaphoreTakeRecursive(s_max31865_mutex, portMAX_DELAY); \
+        } \
+    } while(0)
+    
+    #define MAX31865_MUTEX_GIVE() do { \
+        if (s_max31865_mutex) { \
+            xSemaphoreGiveRecursive(s_max31865_mutex); \
+        } \
+    } while(0)
+#else
+    // On Arduino, these macros do nothing.
+    #define MAX31865_MUTEX_TAKE()
+    #define MAX31865_MUTEX_GIVE()
 #endif
 
 /* ------------------ MAX31865 register definitions ------------------ */
@@ -71,25 +102,7 @@
 #define MAX31865_FAULT_RTDINLOW    (1 << 3)
 #define MAX31865_FAULT_OVUV        (1 << 2)
 
-/* ------------------ Callendar-Van Dusen coefficients for platinum (ITS-90) ----
- * R(T) = R0 * (1 + A*T + B*T^2) for T >= 0
- * For T < 0: R(T) = R0 * (1 + A*T + B*T^2 + C*(T-100)*T^3)
- *
- * Coefficients (commonly used):
- * A = 3.9083e-3
- * B = -5.775e-7
- * C = -4.183e-12
- *
- * For T >= 0 you can solve the quadratic analytically:
- * R/R0 = 1 + A*T + B*T^2
- * => B*T^2 + A*T + (1 - R/R0) = 0
- * Use the positive root:
- * T = (-A + sqrt(A^2 - 4*B*(1 - R/R0))) / (2*B)
- *
- * For T < 0 use Newton-Raphson on f(T) = Rcalc(T) - Rmeas
- * where Rcalc uses the full Callendar-Van Dusen equation including C term.
- * Start with -50C guess or quadratic result and iterate.
- * ------------------------------------------------------------------------- */
+/* ------------------ Callendar-Van Dusen coefficients for platinum (ITS-90) ---- */
 static const double CV_A = 3.9083e-3;
 static const double CV_B = -5.775e-7;
 static const double CV_C = -4.183e-12;
@@ -143,7 +156,12 @@ static unsigned clamp_decimals(unsigned d) {
 /* Platform-specific delay (milliseconds) */
 static void platform_delay_ms(uint32_t ms) {
 #if defined(ESP_PLATFORM)
-    esp_rom_delay_us(ms * 1000UL);
+    // Use FreeRTOS delay if in a task, otherwise use ROM delay
+    if (xTaskGetSchedulerState() == taskSCHEDULER_RUNNING) {
+        vTaskDelay(pdMS_TO_TICKS(ms));
+    } else {
+        esp_rom_delay_us(ms * 1000UL);
+    }
 #elif defined(ARDUINO)
     delay(ms);
 #endif
@@ -404,6 +422,15 @@ static int read_config(uint8_t *out) {
 /* ------------------ Public API implementation ------------------ */
 
 int max31865_init_hw(int cs_pin, uint32_t clock_hz) {
+#if defined(ESP_PLATFORM)
+    // Create mutex if it doesn't exist
+    if (s_max31865_mutex == NULL) {
+        s_max31865_mutex = xSemaphoreCreateRecursiveMutex();
+    }
+#endif
+    
+    MAX31865_MUTEX_TAKE();
+    
     /* Deinit any previous */
     max31865_deinit();
 
@@ -443,10 +470,12 @@ int max31865_init_hw(int cs_pin, uint32_t clock_hz) {
     ret = spi_bus_add_device(HSPI_HOST, &devcfg, &s_spi_dev);
     if (ret != ESP_OK) {
         s_spi_dev = NULL;
+        MAX31865_MUTEX_GIVE();
         return -10;
     }
 
     s_mode = MAX31865_MODE_HW;
+    MAX31865_MUTEX_GIVE();
     return 0;
 
 #elif defined(ARDUINO)
@@ -458,12 +487,22 @@ int max31865_init_hw(int cs_pin, uint32_t clock_hz) {
     /* config: MSBFIRST, SPI_MODE1 */
     s_clock_hz = s_clock_hz ? s_clock_hz : 1000000;
     s_mode = MAX31865_MODE_HW;
+    MAX31865_MUTEX_GIVE();
     return 0;
 
 #endif
 }
 
 int max31865_init_sw(int cs_pin, int sck_pin, int mosi_pin, int miso_pin) {
+#if defined(ESP_PLATFORM)
+    // Create mutex if it doesn't exist
+    if (s_max31865_mutex == NULL) {
+        s_max31865_mutex = xSemaphoreCreateRecursiveMutex();
+    }
+#endif
+
+    MAX31865_MUTEX_TAKE();
+    
     max31865_deinit();
     s_cs = cs_pin;
     s_sck = sck_pin;
@@ -495,6 +534,7 @@ int max31865_init_sw(int cs_pin, int sck_pin, int mosi_pin, int miso_pin) {
     gpio_set_level((gpio_num_t)s_mosi, 0);
 
     s_mode = MAX31865_MODE_SW;
+    MAX31865_MUTEX_GIVE();
     return 0;
 
 #elif defined(ARDUINO)
@@ -508,12 +548,15 @@ int max31865_init_sw(int cs_pin, int sck_pin, int mosi_pin, int miso_pin) {
     digitalWrite(s_mosi, LOW);
 
     s_mode = MAX31865_MODE_SW;
+    MAX31865_MUTEX_GIVE();
     return 0;
 
 #endif
 }
 
 void max31865_deinit(void) {
+    MAX31865_MUTEX_TAKE();
+    
 #if defined(ESP_PLATFORM)
     if (s_spi_dev) {
         spi_bus_remove_device(s_spi_dev);
@@ -521,77 +564,131 @@ void max31865_deinit(void) {
     }
     /* Do not call spi_bus_free to avoid interfering with other components */
     s_esp_bus_initialized = false;
+    
+    // Delete the mutex
+    if (s_max31865_mutex != NULL) {
+        vSemaphoreDelete(s_max31865_mutex);
+        s_max31865_mutex = NULL;
+    }
 #elif defined(ARDUINO)
     /* Leave SPI as shared. */
 #endif
 
     s_mode = MAX31865_MODE_NONE;
     s_cs = s_sck = s_mosi = s_miso = -1;
+    
+    // We cannot GIVE the mutex here, because we just deleted it.
+    // This function is the only one that violates the TAKE/GIVE pattern.
 }
 
 /* Set RTD nominal and ref resistor */
 void max31865_set_rtd_nominal(float rtd_nominal_ohms, float ref_resistor_ohms) {
+    MAX31865_MUTEX_TAKE();
     if (rtd_nominal_ohms > 0.0f) s_rtd_nominal = rtd_nominal_ohms;
     if (ref_resistor_ohms > 0.0f) s_ref_resistor = ref_resistor_ohms;
+    MAX31865_MUTEX_GIVE();
 }
 
 /* Set wire mode: 2/3/4 */
 int max31865_set_wire_mode(int wires) {
+    MAX31865_MUTEX_TAKE();
     if (!(wires == MAX31865_WIRES_2 || wires == MAX31865_WIRES_3 || wires == MAX31865_WIRES_4)) {
+        MAX31865_MUTEX_GIVE();
         return -1;
     }
     uint8_t cfg;
     if (read_config(&cfg) != 0) {
+        MAX31865_MUTEX_GIVE();
         return -2;
     }
     if (wires == MAX31865_WIRES_3) cfg |= MAX31865_CONFIG_3WIRE;
     else cfg &= ~MAX31865_CONFIG_3WIRE;
-    if (write_config(cfg) != 0) return -3;
+    if (write_config(cfg) != 0) {
+        MAX31865_MUTEX_GIVE();
+        return -3;
+    }
     s_wire_count = wires;
+    MAX31865_MUTEX_GIVE();
     return 0;
 }
 
 /* Set 50Hz filter (true) else 60Hz */
 int max31865_set_filter_50hz(bool enable) {
+    MAX31865_MUTEX_TAKE();
     uint8_t cfg;
-    if (read_config(&cfg) != 0) return -1;
+    if (read_config(&cfg) != 0) {
+        MAX31865_MUTEX_GIVE();
+        return -1;
+    }
     if (enable) cfg |= MAX31865_CONFIG_FILTER50;
     else cfg &= ~MAX31865_CONFIG_FILTER50;
-    if (write_config(cfg) != 0) return -2;
+    if (write_config(cfg) != 0) {
+        MAX31865_MUTEX_GIVE();
+        return -2;
+    }
+    MAX31865_MUTEX_GIVE();
     return 0;
 }
 
 /* enable_bias: set/clear VBIAS */
 int max31865_enable_bias(bool enable) {
+    MAX31865_MUTEX_TAKE();
     uint8_t cfg;
-    if (read_config(&cfg) != 0) return -1;
+    if (read_config(&cfg) != 0) {
+        MAX31865_MUTEX_GIVE();
+        return -1;
+    }
     if (enable) cfg |= MAX31865_CONFIG_BIAS;
     else cfg &= ~MAX31865_CONFIG_BIAS;
-    if (write_config(cfg) != 0) return -2;
+    if (write_config(cfg) != 0) {
+        MAX31865_MUTEX_GIVE();
+        return -2;
+    }
+    MAX31865_MUTEX_GIVE();
     return 0;
 }
 
 /* Start one-shot conversion: set ONE_SHOT bit (auto clears) */
 int max31865_start_one_shot(void) {
+    MAX31865_MUTEX_TAKE();
     uint8_t cfg;
-    if (read_config(&cfg) != 0) return -1;
+    if (read_config(&cfg) != 0) {
+        MAX31865_MUTEX_GIVE();
+        return -1;
+    }
     cfg |= MAX31865_CONFIG_ONE_SHOT;
-    if (write_config(cfg) != 0) return -2;
+    if (write_config(cfg) != 0) {
+        MAX31865_MUTEX_GIVE();
+        return -2;
+    }
+    MAX31865_MUTEX_GIVE();
     return 0;
 }
 
 /* Clear faults: set fault clear bit (writing 1 will clear) */
 int max31865_clear_faults(void) {
+    MAX31865_MUTEX_TAKE();
     uint8_t cfg;
-    if (read_config(&cfg) != 0) return -1;
+    if (read_config(&cfg) != 0) {
+        MAX31865_MUTEX_GIVE();
+        return -1;
+    }
     cfg |= MAX31865_CONFIG_FAULT_CLR;
-    if (write_config(cfg) != 0) return -2;
+    if (write_config(cfg) != 0) {
+        MAX31865_MUTEX_GIVE();
+        return -2;
+    }
+    MAX31865_MUTEX_GIVE();
     return 0;
 }
 
 /* Low-level read raw (15-bit) */
 int max31865_read_raw(uint16_t *out_raw) {
-    if (!out_raw) return -1;
+    MAX31865_MUTEX_TAKE();
+    if (!out_raw) {
+        MAX31865_MUTEX_GIVE();
+        return -1;
+    }
 
     uint8_t buf[2];
     int rc;
@@ -600,42 +697,68 @@ int max31865_read_raw(uint16_t *out_raw) {
     } else {
         rc = spi_read_registers(MAX31865_REG_RTD_MSB, buf, 2);
     }
-    if (rc != 0) return -2;
+    if (rc != 0) {
+        MAX31865_MUTEX_GIVE();
+        return -2;
+    }
 
     /* Combine MSB and LSB (MSB first), then shift right by 1 (LSB bit0 is fault) */
     uint16_t msb = buf[0];
     uint16_t lsb = buf[1];
     uint16_t raw = (uint16_t)((msb << 8) | lsb) >> 1;
     *out_raw = raw;
+    MAX31865_MUTEX_GIVE();
     return 0;
 }
 
 /* Debug helper: read two bytes (msb, lsb) directly */
 int max31865_read_raw_bytes(uint8_t out[2]) {
-    if (!out) return -1;
-    if (s_mode == MAX31865_MODE_SW) return sw_read_registers(MAX31865_REG_RTD_MSB, out, 2);
-    return spi_read_registers(MAX31865_REG_RTD_MSB, out, 2);
+    MAX31865_MUTEX_TAKE();
+    if (!out) {
+        MAX31865_MUTEX_GIVE();
+        return -1;
+    }
+    int rc;
+    if (s_mode == MAX31865_MODE_SW) rc = sw_read_registers(MAX31865_REG_RTD_MSB, out, 2);
+    else rc = spi_read_registers(MAX31865_REG_RTD_MSB, out, 2);
+    MAX31865_MUTEX_GIVE();
+    return rc;
 }
 
 /* Read fault status register */
 int max31865_read_fault_status(uint8_t *out_fault) {
-    if (!out_fault) return -1;
+    MAX31865_MUTEX_TAKE();
+    if (!out_fault) {
+        MAX31865_MUTEX_GIVE();
+        return -1;
+    }
     uint8_t buf;
     int rc;
     if (s_mode == MAX31865_MODE_SW) rc = sw_read_registers(MAX31865_REG_FAULT_STAT, &buf, 1);
     else rc = spi_read_registers(MAX31865_REG_FAULT_STAT, &buf, 1);
-    if (rc != 0) return -2;
+    
+    if (rc != 0) {
+        MAX31865_MUTEX_GIVE();
+        return -2;
+    }
     s_last_fault = buf;
     *out_fault = buf;
+    MAX31865_MUTEX_GIVE();
     return 0;
 }
 
 uint8_t max31865_last_fault(void) {
-    return s_last_fault;
+    MAX31865_MUTEX_TAKE();
+    uint8_t fault = s_last_fault;
+    MAX31865_MUTEX_GIVE();
+    return fault;
 }
 
 bool max31865_has_fault(void) {
-    return s_last_fault != 0;
+    MAX31865_MUTEX_TAKE();
+    bool has_fault = (s_last_fault != 0);
+    MAX31865_MUTEX_GIVE();
+    return has_fault;
 }
 
 /* Convert raw to resistance (float), per datasheet:
@@ -643,23 +766,38 @@ bool max31865_has_fault(void) {
  * => R_rtd = (raw / 32768.0) * R_ref
  */
 float max31865_read_resistance_float(void) {
+    MAX31865_MUTEX_TAKE();
     uint16_t raw;
-    if (max31865_read_raw(&raw) != 0) return NAN;
+    if (max31865_read_raw(&raw) != 0) {
+        MAX31865_MUTEX_GIVE();
+        return NAN;
+    }
     /* also read fault register: the LSB bit0 included in the RTD register indicates fault when set?
        We will also check the fault status register separately. */
     float r = ((float)raw) * (s_ref_resistor / 32768.0f);
+    MAX31865_MUTEX_GIVE();
     return r;
 }
 
 long max31865_read_resistance_int(unsigned decimals) {
+    MAX31865_MUTEX_TAKE();
     uint16_t raw;
-    if (max31865_read_raw(&raw) != 0) return MAX31865_ERROR;
+    if (max31865_read_raw(&raw) != 0) {
+        MAX31865_MUTEX_GIVE();
+        return MAX31865_ERROR;
+    }
     float r = ((float)raw) * (s_ref_resistor / 32768.0f);
-    if (!isfinite(r)) return MAX31865_ERROR;
+    if (!isfinite(r)) {
+        MAX31865_MUTEX_GIVE();
+        return MAX31865_ERROR;
+    }
     unsigned d = clamp_decimals(decimals);
-    if (d == 0) return (long)roundf(r);
-    if (d == 1) return (long)roundf(r * 10.0f);
-    return (long)roundf(r * 100.0f);
+    long val;
+    if (d == 0) val = (long)roundf(r);
+    else if (d == 1) val = (long)roundf(r * 10.0f);
+    else val = (long)roundf(r * 100.0f);
+    MAX31865_MUTEX_GIVE();
+    return val;
 }
 
 /* Solve Callendar–Van Dusen:
@@ -732,9 +870,13 @@ static float resistance_to_temperature_c(float r) {
 
 /* Public temperature read (C float) */
 float max31865_read_temperature_c_float(unsigned decimals) {
+    MAX31865_MUTEX_TAKE();
     unsigned d = clamp_decimals(decimals);
     float r = max31865_read_resistance_float();
-    if (!isfinite(r)) return NAN;
+    if (!isfinite(r)) {
+        MAX31865_MUTEX_GIVE();
+        return NAN;
+    }
     /* read fault status as well */
     uint8_t fault;
     if (max31865_read_fault_status(&fault) != 0) {
@@ -743,61 +885,104 @@ float max31865_read_temperature_c_float(unsigned decimals) {
     } else {
         s_last_fault = fault;
         if (fault != 0) {
+            MAX31865_MUTEX_GIVE();
             return NAN;
         }
     }
     float c = resistance_to_temperature_c(r);
-    if (!isfinite(c)) return NAN;
-    if (d == 0) return roundf(c);
-    if (d == 1) return roundf(c * 10.0f) / 10.0f;
-    return roundf(c * 100.0f) / 100.0f;
+    if (!isfinite(c)) {
+        MAX31865_MUTEX_GIVE();
+        return NAN;
+    }
+    
+    float val;
+    if (d == 0) val = roundf(c);
+    else if (d == 1) val = roundf(c * 10.0f) / 10.0f;
+    else val = roundf(c * 100.0f) / 100.0f;
+    
+    MAX31865_MUTEX_GIVE();
+    return val;
 }
 
 long max31865_read_temperature_c_int(unsigned decimals) {
+    MAX31865_MUTEX_TAKE();
     unsigned d = clamp_decimals(decimals);
     float r = max31865_read_resistance_float();
-    if (!isfinite(r)) return MAX31865_ERROR;
+    if (!isfinite(r)) {
+        MAX31865_MUTEX_GIVE();
+        return MAX31865_ERROR;
+    }
     uint8_t fault;
     if (max31865_read_fault_status(&fault) != 0) {
         s_last_fault = 0;
     } else {
         s_last_fault = fault;
-        if (fault != 0) return MAX31865_ERROR;
+        if (fault != 0) {
+            MAX31865_MUTEX_GIVE();
+            return MAX31865_ERROR;
+        }
     }
 
     float c = resistance_to_temperature_c(r);
-    if (!isfinite(c)) return MAX31865_ERROR;
+    if (!isfinite(c)) {
+        MAX31865_MUTEX_GIVE();
+        return MAX31865_ERROR;
+    }
 
-    if (d == 0) return (long)roundf(c);
-    if (d == 1) return (long)roundf(c * 10.0f);
-    return (long)roundf(c * 100.0f);
+    long val;
+    if (d == 0) val = (long)roundf(c);
+    else if (d == 1) val = (long)roundf(c * 10.0f);
+    else val = (long)roundf(c * 100.0f);
+    
+    MAX31865_MUTEX_GIVE();
+    return val;
 }
 
 /* Fahrenheit conversions */
 float max31865_read_temperature_f_float(unsigned decimals) {
+    MAX31865_MUTEX_TAKE();
     float c = max31865_read_temperature_c_float(3); /* get high precision */
-    if (!isfinite(c)) return NAN;
+    if (!isfinite(c)) {
+        MAX31865_MUTEX_GIVE();
+        return NAN;
+    }
     float f = c * 9.0f / 5.0f + 32.0f;
     unsigned d = clamp_decimals(decimals);
-    if (d == 0) return roundf(f);
-    if (d == 1) return roundf(f * 10.0f) / 10.0f;
-    return roundf(f * 100.0f) / 100.0f;
+    
+    float val;
+    if (d == 0) val = roundf(f);
+    else if (d == 1) val = roundf(f * 10.0f) / 10.0f;
+    else val = roundf(f * 100.0f) / 100.0f;
+    
+    MAX31865_MUTEX_GIVE();
+    return val;
 }
 
 long max31865_read_temperature_f_int(unsigned decimals) {
+    MAX31865_MUTEX_TAKE();
     long c100 = max31865_read_temperature_c_int(2); /* scaled x100 */
-    if (c100 == MAX31865_ERROR) return MAX31865_ERROR;
+    if (c100 == MAX31865_ERROR) {
+        MAX31865_MUTEX_GIVE();
+        return MAX31865_ERROR;
+    }
     float c = ((float)c100) / 100.0f;
     float f = c * 9.0f / 5.0f + 32.0f;
     unsigned d = clamp_decimals(decimals);
-    if (d == 0) return (long)roundf(f);
-    if (d == 1) return (long)roundf(f * 10.0f);
-    return (long)roundf(f * 100.0f);
+
+    long val;
+    if (d == 0) val = (long)roundf(f);
+    else if (d == 1) val = (long)roundf(f * 10.0f);
+    else val = (long)roundf(f * 100.0f);
+    
+    MAX31865_MUTEX_GIVE();
+    return val;
 }
 
 /* Debug setter */
 void max31865_set_debug(int verbosity) {
+    MAX31865_MUTEX_TAKE();
     s_debug = verbosity;
+    MAX31865_MUTEX_GIVE();
 }
 
 
@@ -805,8 +990,12 @@ void max31865_set_debug(int verbosity) {
 
 /* enable/disable continuous conversions and leave bias on when enabled */
 int max31865_set_continuous_mode(bool enable) {
+    MAX31865_MUTEX_TAKE();
     uint8_t cfg;
-    if (read_config(&cfg) != 0) return -1;
+    if (read_config(&cfg) != 0) {
+        MAX31865_MUTEX_GIVE();
+        return -1;
+    }
     
     if (enable) {
         cfg |= MAX31865_CONFIG_BIAS;   /* VBIAS on */
@@ -817,7 +1006,11 @@ int max31865_set_continuous_mode(bool enable) {
         cfg &= ~MAX31865_CONFIG_BIAS;  /* VBIAS off */
     }
     
-    if (write_config(cfg) != 0) return -2;
+    if (write_config(cfg) != 0) {
+        MAX31865_MUTEX_GIVE();
+        return -2;
+    }
+    MAX31865_MUTEX_GIVE();
     return 0;
 }
 
@@ -825,6 +1018,8 @@ int max31865_set_continuous_mode(bool enable) {
 /* read RTD and convert (existing conversion logic is used).
    This wrapper implements spike-detection and retry. Returns last-good if transient. */
 float max31865_read_temperature_safe(void) {
+    MAX31865_MUTEX_TAKE();
+    
     /* Read temperature using existing function (handles faults) */
     /* Use 3 decimals for internal precision */
     float t = max31865_read_temperature_c_float(3); 
@@ -836,7 +1031,9 @@ float max31865_read_temperature_safe(void) {
 
         if (!isfinite(t)) {
             /* Still bad? Return last good, or NAN if no last good */
-            return isnan(s_last_good_temp_c) ? NAN : s_last_good_temp_c;
+            float last_good = isnan(s_last_good_temp_c) ? NAN : s_last_good_temp_c;
+            MAX31865_MUTEX_GIVE();
+            return last_good;
         }
     }
 
@@ -851,17 +1048,23 @@ float max31865_read_temperature_safe(void) {
             t = tc;
         } else {
             /* Retry value is also bad or still a spike. Reject. */
-            return s_last_good_temp_c;
+            float last_good = s_last_good_temp_c;
+            MAX31865_MUTEX_GIVE();
+            return last_good;
         }
     }
 
     /* accept reading */
     s_last_good_temp_c = t;
+    MAX31865_MUTEX_GIVE();
     return t;
 }
 
 float max31865_get_last_good(void) {
-    return s_last_good_temp_c;
+    MAX31865_MUTEX_TAKE();
+    float last_good = s_last_good_temp_c;
+    MAX31865_MUTEX_GIVE();
+    return last_good;
 }
 
 /* --- End of added functions --- */

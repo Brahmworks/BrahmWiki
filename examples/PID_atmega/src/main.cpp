@@ -1,6 +1,6 @@
-// src/main.cpp - Arduino UNO example using NEW pid_heater_manage_window()
+// src/main.cpp - Arduino UNO example
 #include <Arduino.h>
-#include <math.h> // For isnan()
+#include <math.h>
 
 // Include your custom libraries
 extern "C" {

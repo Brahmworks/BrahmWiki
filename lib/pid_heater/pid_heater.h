@@ -105,9 +105,47 @@ int pid_heater_frac_to_output(pid_heater_handle_t h, float fraction);
  */
 float pid_heater_get_last_output_fraction(pid_heater_handle_t h);
 
+/**
+ * @brief Get the last integer output computed by the controller.
+ * @param h Handle
+ * @return Last output (int, in configured out_min..out_max), or 0 if invalid handle.
+ */
+int pid_heater_get_last_output(pid_heater_handle_t h);
+
+/**
+ * @brief Compute PID update and return on-time (milliseconds) for a given window length.
+ *
+ * @param h Handle
+ * @param measured_c measured temperature (°C)
+ * @param window_ms time-proportional window length in ms (e.g. 3000)
+ * @param dt_ms dt passed to pid_heater_update (ms)
+ * @return on-time in ms (0..window_ms)
+ */
+uint32_t pid_heater_compute_on_ms(pid_heater_handle_t h, float measured_c, uint32_t window_ms, uint32_t dt_ms);
+
+
+/* --- NEW NON-BLOCKING MANAGER --- */
+
+/**
+ * @brief Non-blocking PID window manager (for Arduino-style loops).
+ *
+ * Call this function rapidly in your main loop(). It automatically handles:
+ * 1. PID window timing (using window_period_ms).
+ * 2. Calling pid_heater_compute_on_ms() at the start of a new window.
+ * 3. Controlling the SSR state via the callback during the window.
+ *
+ * @param h Handle
+ * @param now_ms The current time from millis()
+ * @param current_temp The latest temperature reading from your sensor.
+ * @param ssr_set_callback A function pointer to your ssr_set(bool on) function.
+ * @return true if a new window just started (and PID was updated), false otherwise.
+ */
+bool pid_heater_manage_window(pid_heater_handle_t h,
+                              uint32_t now_ms,
+                              float current_temp,
+                              void (*ssr_set_callback)(bool));
 
 #ifdef __cplusplus
 }
 #endif
 #endif // PID_HEATER_H
-

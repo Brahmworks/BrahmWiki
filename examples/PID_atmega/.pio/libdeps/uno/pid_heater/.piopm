@@ -1,0 +1,1 @@
+{"type": "library", "name": "pid_heater", "version": "0.0.0+20251104163842", "spec": {"owner": null, "id": null, "name": "pid_heater", "requirements": null, "uri": "file://../../../lib/pid_heater"}}

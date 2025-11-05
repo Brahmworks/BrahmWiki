@@ -3,13 +3,16 @@
  *
  * Cross-platform MAX31865 library (Arduino UNO/MEGA and ESP-IDF ESP32)
  * - Single-device global state (simpler). To extend to multiple devices,
- *   store the state struct per device and change APIs to accept a handle/pointer.
+ * store the state struct per device and change APIs to accept a handle/pointer.
  *
  * - Use C-style functions only. Header uses extern "C" so main.c can link.
  *
+ * - ESP-IDF: This version is THREAD-SAFE. It uses a recursive mutex
+ * and renamed static variables (s_max31865_*) to prevent conflicts.
+ *
  * CAUTION (copy/paste to README):
  * - ESP-IDF: avoid SPI_DEVICE_HALFDUPLEX + DMA + MOSI+MISO transactions.
- *   This library uses full-duplex device flags and robust transfer paths.
+ * This library uses full-duplex device flags and robust transfer paths.
  * - If your toolchain returns zeros, set MAX31865_ESP_SAFE_SPI to 1 below.
  */
 
@@ -35,6 +38,10 @@
   #include "esp_rom_sys.h" /* esp_rom_delay_us */
   #include "esp_heap_caps.h"
   #include "esp_log.h"
+  // --- THREAD-SAFETY ADDITIONS ---
+  #include "freertos/FreeRTOS.h"
+  #include "freertos/semphr.h"
+  // --- END THREAD-SAFETY ---
 #elif defined(ARDUINO)
   #include <Arduino.h>
   #include <SPI.h>
@@ -42,8 +49,39 @@
   #error "Either ESP_PLATFORM or ARDUINO must be defined"
 #endif
 
+/* ------------------ Thread-Safety Mutex (ESP-IDF Only) ------------------ */
+
+#if defined(ESP_PLATFORM)
+    // We use a recursive mutex so that functions like `read_safe` can call
+    // other public functions (like `read_c_float`) without deadlocking.
+    static SemaphoreHandle_t s_max31865_lib_mutex = NULL;
+
+    // Helper function to create the mutex on first use
+    static void max31865_init_mutex(void) {
+        if (s_max31865_lib_mutex == NULL) {
+            s_max31865_lib_mutex = xSemaphoreCreateRecursiveMutex();
+        }
+    }
+
+    #define MAX31865_MUTEX_TAKE() do { \
+        max31865_init_mutex(); /* Create if it doesn't exist */ \
+        if (s_max31865_lib_mutex) { \
+            xSemaphoreTakeRecursive(s_max31865_lib_mutex, portMAX_DELAY); \
+        } \
+    } while(0)
+    
+    #define MAX31865_MUTEX_GIVE() do { \
+        if (s_max31865_lib_mutex) { \
+            xSemaphoreGiveRecursive(s_max31865_lib_mutex); \
+        } \
+    } while(0)
+#else
+    // On Arduino, these macros do nothing.
+    #define MAX31865_MUTEX_TAKE()
+    #define MAX31865_MUTEX_GIVE()
+#endif
+
 /* ------------------ MAX31865 register definitions ------------------ */
-/* Per datasheet: read addresses are 0x0X, write uses 0x8X (OR 0x80) */
 #define MAX31865_REG_CONFIG     0x00
 #define MAX31865_REG_RTD_MSB    0x01
 #define MAX31865_REG_RTD_LSB    0x02
@@ -52,7 +90,6 @@
 #define MAX31865_REG_LFT_MSB    0x05
 #define MAX31865_REG_LFT_LSB    0x06
 #define MAX31865_REG_FAULT_STAT 0x07
-
 /* Config register bit masks */
 #define MAX31865_CONFIG_BIAS      (1 << 7)
 #define MAX31865_CONFIG_AUTO      (1 << 6)
@@ -71,25 +108,8 @@
 #define MAX31865_FAULT_RTDINLOW    (1 << 3)
 #define MAX31865_FAULT_OVUV        (1 << 2)
 
-/* ------------------ Callendar-Van Dusen coefficients for platinum (ITS-90) ----
- * R(T) = R0 * (1 + A*T + B*T^2) for T >= 0
- * For T < 0: R(T) = R0 * (1 + A*T + B*T^2 + C*(T-100)*T^3)
- *
- * Coefficients (commonly used):
- * A = 3.9083e-3
- * B = -5.775e-7
- * C = -4.183e-12
- *
- * For T >= 0 you can solve the quadratic analytically:
- *    R/R0 = 1 + A*T + B*T^2
- * => B*T^2 + A*T + (1 - R/R0) = 0
- * Use the positive root:
- *    T = (-A + sqrt(A^2 - 4*B*(1 - R/R0))) / (2*B)
- *
- * For T < 0 use Newton-Raphson on f(T) = Rcalc(T) - Rmeas
- * where Rcalc uses the full Callendar-Van Dusen equation including C term.
- * Start with -50C guess or quadratic result and iterate.
- * ------------------------------------------------------------------------- */
+
+/* ------------------ Callendar-Van Dusen coefficients for platinum (ITS-90) ---- */
 static const double CV_A = 3.9083e-3;
 static const double CV_B = -5.775e-7;
 static const double CV_C = -4.183e-12;
@@ -110,8 +130,8 @@ static int s_miso = -1;
 static uint32_t s_clock_hz = 1000000; /* default 1MHz safe */
 
 /* rtd and ref values & wire config */
-static float s_rtd_nominal = 100.0f;   /* PT100 default */
-static float s_ref_resistor = 430.0f;  /* example breakout uses 430 ohm for PT100 R0=100 */
+static float s_rtd_nominal = 100.0f;  /* PT100 default */
+static float s_ref_resistor = 430.0f; /* example breakout uses 430 ohm for PT100 R0=100 */
 static int s_wire_count = MAX31865_WIRES_2;
 
 /* last fault cached */
@@ -120,10 +140,18 @@ static uint8_t s_last_fault = 0;
 /* debug verbosity */
 static int s_debug = 0;
 
+/* --- Added from new snippet --- */
+static float s_last_good_temp_c = NAN;
+static const float SPIKE_DELTA_THRESHOLD_C = 10.0f; // tuneable
+static const uint32_t SPIKE_RETRY_MS = 50;
+/* --- End of added variables --- */
+
+
 #if defined(ESP_PLATFORM)
-static spi_device_handle_t s_spi_dev = NULL;
-static bool s_esp_bus_initialized = false;
-static const char *TAG = "max31865";
+// --- RENAMED STATIC VARIABLES ---
+static spi_device_handle_t s_max31865_spi_dev = NULL;
+static bool s_max31865_bus_initialized = false;
+// static const char *TAG = "max31865"; // <-- REMOVED TO FIX WARNING
 #endif
 
 /* ------------------ Utility: clamp decimals ------------------ */
@@ -131,6 +159,23 @@ static unsigned clamp_decimals(unsigned d) {
     if (d > 2) return 2;
     return d;
 }
+
+/* --- Added helper for cross-platform delay --- */
+/* Platform-specific delay (milliseconds) */
+static void platform_delay_ms(uint32_t ms) {
+#if defined(ESP_PLATFORM)
+    // Use FreeRTOS delay if in a task, otherwise use ROM delay
+    if (xTaskGetSchedulerState() == taskSCHEDULER_RUNNING) {
+        vTaskDelay(pdMS_TO_TICKS(ms));
+    } else {
+        esp_rom_delay_us(ms * 1000UL);
+    }
+#elif defined(ARDUINO)
+    delay(ms);
+#endif
+}
+/* --- End of added helper --- */
+
 
 /* ------------------ Low-level SPI helpers (platform-specific) ------------- */
 
@@ -142,7 +187,7 @@ static int spi_write_register(uint8_t regaddr, uint8_t value) {
 
 #if defined(ESP_PLATFORM)
     if (s_mode != MAX31865_MODE_HW) return -1;
-    if (!s_spi_dev) return -2;
+    if (!s_max31865_spi_dev) return -2; // <-- Use renamed variable
 
     /* Small-transfer fast path: <=2 bytes -> use rx/txdata if available */
 #if MAX31865_ESP_SAFE_SPI == 0
@@ -152,7 +197,7 @@ static int spi_write_register(uint8_t regaddr, uint8_t value) {
     t.flags = SPI_TRANS_USE_TXDATA;
     t.tx_data[0] = txbuf[0];
     t.tx_data[1] = txbuf[1];
-    esp_err_t ret = spi_device_polling_transmit(s_spi_dev, &t);
+    esp_err_t ret = spi_device_polling_transmit(s_max31865_spi_dev, &t); // <-- Use renamed variable
     if (ret != ESP_OK) return -3;
     return 0;
 #else
@@ -165,14 +210,14 @@ static int spi_write_register(uint8_t regaddr, uint8_t value) {
     memset(&t, 0, sizeof(t));
     t.length = 2 * 8;
     t.tx_buffer = tx;
-    esp_err_t ret = spi_device_transmit(s_spi_dev, &t);
+    esp_err_t ret = spi_device_transmit(s_max31865_spi_dev, &t); // <-- Use renamed variable
     heap_caps_free(tx);
     if (ret != ESP_OK) return -5;
     return 0;
 #endif
 
 #elif defined(ARDUINO)
-
+    // ... (Arduino code is unchanged) ...
     if (s_mode != MAX31865_MODE_HW) return -1;
     digitalWrite(s_cs, LOW);
     SPI.beginTransaction(SPISettings(s_clock_hz, MSBFIRST, SPI_MODE1));
@@ -193,7 +238,7 @@ static int spi_read_registers(uint8_t regaddr, uint8_t *out, size_t len) {
 
 #if defined(ESP_PLATFORM)
     if (s_mode != MAX31865_MODE_HW) return -2;
-    if (!s_spi_dev) return -3;
+    if (!s_max31865_spi_dev) return -3; // <-- Use renamed variable
 
     /* If len+1 <= 3 use small-transfer polling path (address + ≤2 data bytes)
        using SPI_TRANS_USE_RXDATA / TXDATA. Else use heap buffers for DMA safety. */
@@ -208,7 +253,7 @@ static int spi_read_registers(uint8_t regaddr, uint8_t *out, size_t len) {
         t.flags = SPI_TRANS_USE_RXDATA | SPI_TRANS_USE_TXDATA;
         t.tx_data[0] = (uint8_t)(regaddr & 0x7F); /* read address */
         /* remaining tx_data bytes default to 0 (dummy) */
-        esp_err_t ret = spi_device_polling_transmit(s_spi_dev, &t);
+        esp_err_t ret = spi_device_polling_transmit(s_max31865_spi_dev, &t); // <-- Use renamed variable
         if (ret != ESP_OK) return -4;
         /* rx_data[0] is the shifted response to first tx (usually dummy), rx_data[1..] contain read bytes */
         /* For small transfers, the rx positions are: rx_data[1]..rx_data[total-1] */
@@ -235,7 +280,7 @@ static int spi_read_registers(uint8_t regaddr, uint8_t *out, size_t len) {
         t.length = total * 8;
         t.tx_buffer = tx;
         t.rx_buffer = rx;
-        esp_err_t ret = spi_device_transmit(s_spi_dev, &t);
+        esp_err_t ret = spi_device_transmit(s_max31865_spi_dev, &t); // <-- Use renamed variable
         if (ret != ESP_OK) {
             heap_caps_free(tx);
             heap_caps_free(rx);
@@ -248,7 +293,7 @@ static int spi_read_registers(uint8_t regaddr, uint8_t *out, size_t len) {
     }
 
 #elif defined(ARDUINO)
-
+    // ... (Arduino code is unchanged) ...
     if (s_mode != MAX31865_MODE_HW) return -2;
     digitalWrite(s_cs, LOW);
     SPI.beginTransaction(SPISettings(s_clock_hz, MSBFIRST, SPI_MODE1));
@@ -264,9 +309,6 @@ static int spi_read_registers(uint8_t regaddr, uint8_t *out, size_t len) {
 }
 
 /* ------------------ Software (bit-banged) SPI helpers ------------------ */
-/* Uses manual CS toggling and clocking MSB-first. s_mosi is master->slave, s_miso slave->master.
- * NOTE: timing uses microsecond delays; adjust if needed.
- */
 static void sw_spi_cs_low(void) {
 #if defined(ESP_PLATFORM)
     gpio_set_level((gpio_num_t)s_cs, 0);
@@ -305,7 +347,6 @@ static void sw_spi_clock_pulse_high(void) {
 #endif
 }
 
-/* SW write/read arrays */
 static int sw_spi_write_then_read(uint8_t *tx, size_t txlen, uint8_t *rx, size_t rxlen) {
     if (s_mode != MAX31865_MODE_SW) return -1;
     if (s_cs < 0 || s_sck < 0 || s_mosi < 0 || s_miso < 0) return -2;
@@ -321,7 +362,6 @@ static int sw_spi_write_then_read(uint8_t *tx, size_t txlen, uint8_t *rx, size_t
 #else
             digitalWrite(s_mosi, outb);
 #endif
-            /* clock rising edge -> sample on MISO for mode1: CPOL=0 CPHA=1, data sampled on second edge */
             sw_spi_clock_pulse_low();
             sw_spi_clock_pulse_high();
         }
@@ -331,14 +371,12 @@ static int sw_spi_write_then_read(uint8_t *tx, size_t txlen, uint8_t *rx, size_t
     for (size_t i = 0; i < rxlen; ++i) {
         uint8_t b = 0;
         for (int bit = 7; bit >= 0; --bit) {
-            /* MOSI zeros */
 #if defined(ESP_PLATFORM)
             gpio_set_level((gpio_num_t)s_mosi, 0);
 #else
             digitalWrite(s_mosi, LOW);
 #endif
             sw_spi_clock_pulse_low();
-            /* sample MISO on rising edge (mode1) */
 #if defined(ESP_PLATFORM)
             int inb = gpio_get_level((gpio_num_t)s_miso);
 #else
@@ -353,6 +391,7 @@ static int sw_spi_write_then_read(uint8_t *tx, size_t txlen, uint8_t *rx, size_t
     sw_spi_cs_high();
     return 0;
 }
+
 
 /* Convenience wrappers for SW register r/w */
 static int sw_write_register(uint8_t regaddr, uint8_t value) {
@@ -385,8 +424,10 @@ static int read_config(uint8_t *out) {
 /* ------------------ Public API implementation ------------------ */
 
 int max31865_init_hw(int cs_pin, uint32_t clock_hz) {
-    /* Deinit any previous */
-    max31865_deinit();
+    MAX31865_MUTEX_TAKE();
+    
+    /* Deinit any previous SPI device */
+    max31865_deinit(); // This will also be wrapped in mutex
 
     s_cs = cs_pin;
     if (clock_hz) s_clock_hz = clock_hz;
@@ -405,12 +446,12 @@ int max31865_init_hw(int cs_pin, uint32_t clock_hz) {
 
     esp_err_t ret = spi_bus_initialize(HSPI_HOST, &buscfg, SPI_DMA_CH_AUTO);
     if (ret == ESP_OK) {
-        s_esp_bus_initialized = true;
+        s_max31865_bus_initialized = true; // <-- Use renamed variable
     } else if (ret == ESP_ERR_INVALID_STATE) {
-        s_esp_bus_initialized = true;
+        s_max31865_bus_initialized = true; // <-- Use renamed variable
     } else {
         /* Not fatal; continue and try to add device (may fail) */
-        s_esp_bus_initialized = false;
+        s_max31865_bus_initialized = false; // <-- Use renamed variable
     }
 
     spi_device_interface_config_t devcfg;
@@ -421,17 +462,18 @@ int max31865_init_hw(int cs_pin, uint32_t clock_hz) {
     devcfg.queue_size = 1;
     devcfg.flags = 0; /* full-duplex recommended (see caution) */
 
-    ret = spi_bus_add_device(HSPI_HOST, &devcfg, &s_spi_dev);
+    ret = spi_bus_add_device(HSPI_HOST, &devcfg, &s_max31865_spi_dev); // <-- Use renamed variable
     if (ret != ESP_OK) {
-        s_spi_dev = NULL;
+        s_max31865_spi_dev = NULL; // <-- Use renamed variable
+        MAX31865_MUTEX_GIVE();
         return -10;
     }
 
     s_mode = MAX31865_MODE_HW;
+    MAX31865_MUTEX_GIVE();
     return 0;
 
 #elif defined(ARDUINO)
-
     /* Configure pin and SPI */
     pinMode(s_cs, OUTPUT);
     digitalWrite(s_cs, HIGH);
@@ -439,12 +481,15 @@ int max31865_init_hw(int cs_pin, uint32_t clock_hz) {
     /* config: MSBFIRST, SPI_MODE1 */
     s_clock_hz = s_clock_hz ? s_clock_hz : 1000000;
     s_mode = MAX31865_MODE_HW;
+    MAX31865_MUTEX_GIVE();
     return 0;
 
 #endif
 }
 
 int max31865_init_sw(int cs_pin, int sck_pin, int mosi_pin, int miso_pin) {
+    MAX31865_MUTEX_TAKE();
+    
     max31865_deinit();
     s_cs = cs_pin;
     s_sck = sck_pin;
@@ -476,10 +521,10 @@ int max31865_init_sw(int cs_pin, int sck_pin, int mosi_pin, int miso_pin) {
     gpio_set_level((gpio_num_t)s_mosi, 0);
 
     s_mode = MAX31865_MODE_SW;
+    MAX31865_MUTEX_GIVE();
     return 0;
 
 #elif defined(ARDUINO)
-
     pinMode(s_cs, OUTPUT);
     pinMode(s_sck, OUTPUT);
     pinMode(s_mosi, OUTPUT);
@@ -489,90 +534,141 @@ int max31865_init_sw(int cs_pin, int sck_pin, int mosi_pin, int miso_pin) {
     digitalWrite(s_mosi, LOW);
 
     s_mode = MAX31865_MODE_SW;
+    MAX31865_MUTEX_GIVE();
     return 0;
 
 #endif
 }
 
 void max31865_deinit(void) {
+    MAX31865_MUTEX_TAKE();
+    
 #if defined(ESP_PLATFORM)
-    if (s_spi_dev) {
-        spi_bus_remove_device(s_spi_dev);
-        s_spi_dev = NULL;
+    if (s_max31865_spi_dev) { // <-- Use renamed variable
+        spi_bus_remove_device(s_max31865_spi_dev); // <-- Use renamed variable
+        s_max31865_spi_dev = NULL; // <-- Use renamed variable
     }
     /* Do not call spi_bus_free to avoid interfering with other components */
-    s_esp_bus_initialized = false;
+    s_max31865_bus_initialized = false; // <-- Use renamed variable
+    
 #elif defined(ARDUINO)
     /* Leave SPI as shared. */
 #endif
 
     s_mode = MAX31865_MODE_NONE;
     s_cs = s_sck = s_mosi = s_miso = -1;
+    
+    MAX31865_MUTEX_GIVE();
 }
 
 /* Set RTD nominal and ref resistor */
 void max31865_set_rtd_nominal(float rtd_nominal_ohms, float ref_resistor_ohms) {
+    MAX31865_MUTEX_TAKE();
     if (rtd_nominal_ohms > 0.0f) s_rtd_nominal = rtd_nominal_ohms;
     if (ref_resistor_ohms > 0.0f) s_ref_resistor = ref_resistor_ohms;
+    MAX31865_MUTEX_GIVE();
 }
 
 /* Set wire mode: 2/3/4 */
 int max31865_set_wire_mode(int wires) {
+    MAX31865_MUTEX_TAKE();
     if (!(wires == MAX31865_WIRES_2 || wires == MAX31865_WIRES_3 || wires == MAX31865_WIRES_4)) {
+        MAX31865_MUTEX_GIVE();
         return -1;
     }
     uint8_t cfg;
     if (read_config(&cfg) != 0) {
+        MAX31865_MUTEX_GIVE();
         return -2;
     }
     if (wires == MAX31865_WIRES_3) cfg |= MAX31865_CONFIG_3WIRE;
     else cfg &= ~MAX31865_CONFIG_3WIRE;
-    if (write_config(cfg) != 0) return -3;
+    if (write_config(cfg) != 0) {
+        MAX31865_MUTEX_GIVE();
+        return -3;
+    }
     s_wire_count = wires;
+    MAX31865_MUTEX_GIVE();
     return 0;
 }
 
 /* Set 50Hz filter (true) else 60Hz */
 int max31865_set_filter_50hz(bool enable) {
+    MAX31865_MUTEX_TAKE();
     uint8_t cfg;
-    if (read_config(&cfg) != 0) return -1;
+    if (read_config(&cfg) != 0) {
+        MAX31865_MUTEX_GIVE();
+        return -1;
+    }
     if (enable) cfg |= MAX31865_CONFIG_FILTER50;
     else cfg &= ~MAX31865_CONFIG_FILTER50;
-    if (write_config(cfg) != 0) return -2;
+    if (write_config(cfg) != 0) {
+        MAX31865_MUTEX_GIVE();
+        return -2;
+    }
+    MAX31865_MUTEX_GIVE();
     return 0;
 }
 
 /* enable_bias: set/clear VBIAS */
 int max31865_enable_bias(bool enable) {
+    MAX31865_MUTEX_TAKE();
     uint8_t cfg;
-    if (read_config(&cfg) != 0) return -1;
+    if (read_config(&cfg) != 0) {
+        MAX31865_MUTEX_GIVE();
+        return -1;
+    }
     if (enable) cfg |= MAX31865_CONFIG_BIAS;
     else cfg &= ~MAX31865_CONFIG_BIAS;
-    if (write_config(cfg) != 0) return -2;
+    if (write_config(cfg) != 0) {
+        MAX31865_MUTEX_GIVE();
+        return -2;
+    }
+    MAX31865_MUTEX_GIVE();
     return 0;
 }
 
 /* Start one-shot conversion: set ONE_SHOT bit (auto clears) */
 int max31865_start_one_shot(void) {
+    MAX31865_MUTEX_TAKE();
     uint8_t cfg;
-    if (read_config(&cfg) != 0) return -1;
+    if (read_config(&cfg) != 0) {
+        MAX31865_MUTEX_GIVE();
+        return -1;
+    }
     cfg |= MAX31865_CONFIG_ONE_SHOT;
-    if (write_config(cfg) != 0) return -2;
+    if (write_config(cfg) != 0) {
+        MAX31865_MUTEX_GIVE();
+        return -2;
+    }
+    MAX31865_MUTEX_GIVE();
     return 0;
 }
 
 /* Clear faults: set fault clear bit (writing 1 will clear) */
 int max31865_clear_faults(void) {
+    MAX31865_MUTEX_TAKE();
     uint8_t cfg;
-    if (read_config(&cfg) != 0) return -1;
+    if (read_config(&cfg) != 0) {
+        MAX31865_MUTEX_GIVE();
+        return -1;
+    }
     cfg |= MAX31865_CONFIG_FAULT_CLR;
-    if (write_config(cfg) != 0) return -2;
+    if (write_config(cfg) != 0) {
+        MAX31865_MUTEX_GIVE();
+        return -2;
+    }
+    MAX31865_MUTEX_GIVE();
     return 0;
 }
 
 /* Low-level read raw (15-bit) */
 int max31865_read_raw(uint16_t *out_raw) {
-    if (!out_raw) return -1;
+    MAX31865_MUTEX_TAKE();
+    if (!out_raw) {
+        MAX31865_MUTEX_GIVE();
+        return -1;
+    }
 
     uint8_t buf[2];
     int rc;
@@ -581,84 +677,109 @@ int max31865_read_raw(uint16_t *out_raw) {
     } else {
         rc = spi_read_registers(MAX31865_REG_RTD_MSB, buf, 2);
     }
-    if (rc != 0) return -2;
+    if (rc != 0) {
+        MAX31865_MUTEX_GIVE();
+        return -2;
+    }
 
     /* Combine MSB and LSB (MSB first), then shift right by 1 (LSB bit0 is fault) */
     uint16_t msb = buf[0];
     uint16_t lsb = buf[1];
     uint16_t raw = (uint16_t)((msb << 8) | lsb) >> 1;
     *out_raw = raw;
+    MAX31865_MUTEX_GIVE();
     return 0;
 }
 
 /* Debug helper: read two bytes (msb, lsb) directly */
 int max31865_read_raw_bytes(uint8_t out[2]) {
-    if (!out) return -1;
-    if (s_mode == MAX31865_MODE_SW) return sw_read_registers(MAX31865_REG_RTD_MSB, out, 2);
-    return spi_read_registers(MAX31865_REG_RTD_MSB, out, 2);
+    MAX31865_MUTEX_TAKE();
+    if (!out) {
+        MAX31865_MUTEX_GIVE();
+        return -1;
+    }
+    int rc;
+    if (s_mode == MAX31865_MODE_SW) rc = sw_read_registers(MAX31865_REG_RTD_MSB, out, 2);
+    else rc = spi_read_registers(MAX31865_REG_RTD_MSB, out, 2);
+    MAX31865_MUTEX_GIVE();
+    return rc;
 }
 
 /* Read fault status register */
 int max31865_read_fault_status(uint8_t *out_fault) {
-    if (!out_fault) return -1;
+    MAX31865_MUTEX_TAKE();
+    if (!out_fault) {
+        MAX31865_MUTEX_GIVE();
+        return -1;
+    }
     uint8_t buf;
     int rc;
     if (s_mode == MAX31865_MODE_SW) rc = sw_read_registers(MAX31865_REG_FAULT_STAT, &buf, 1);
     else rc = spi_read_registers(MAX31865_REG_FAULT_STAT, &buf, 1);
-    if (rc != 0) return -2;
+    
+    if (rc != 0) {
+        MAX31865_MUTEX_GIVE();
+        return -2;
+    }
     s_last_fault = buf;
     *out_fault = buf;
+    MAX31865_MUTEX_GIVE();
     return 0;
 }
 
 uint8_t max31865_last_fault(void) {
-    return s_last_fault;
+    MAX31865_MUTEX_TAKE();
+    uint8_t fault = s_last_fault;
+    MAX31865_MUTEX_GIVE();
+    return fault;
 }
 
 bool max31865_has_fault(void) {
-    return s_last_fault != 0;
+    MAX31865_MUTEX_TAKE();
+    bool has_fault = (s_last_fault != 0);
+    MAX31865_MUTEX_GIVE();
+    return has_fault;
 }
 
-/* Convert raw to resistance (float), per datasheet:
- * raw (0..32767) represents ratio: raw/32768 = RTD_resistance / R_ref
- * => R_rtd = (raw / 32768.0) * R_ref
- */
+/* Convert raw to resistance (float), per datasheet */
 float max31865_read_resistance_float(void) {
+    MAX31865_MUTEX_TAKE();
     uint16_t raw;
-    if (max31865_read_raw(&raw) != 0) return NAN;
-    /* also read fault register: the LSB bit0 included in the RTD register indicates fault when set?
-       We will also check the fault status register separately. */
+    // Note: read_raw() will also call TAKE/GIVE, which is fine
+    // because the mutex is recursive.
+    if (max31865_read_raw(&raw) != 0) {
+        MAX31865_MUTEX_GIVE();
+        return NAN;
+    }
     float r = ((float)raw) * (s_ref_resistor / 32768.0f);
+    MAX31865_MUTEX_GIVE();
     return r;
 }
 
 long max31865_read_resistance_int(unsigned decimals) {
+    MAX31865_MUTEX_TAKE();
     uint16_t raw;
-    if (max31865_read_raw(&raw) != 0) return MAX31865_ERROR;
+    if (max31865_read_raw(&raw) != 0) {
+        MAX31865_MUTEX_GIVE();
+        return MAX31865_ERROR;
+    }
     float r = ((float)raw) * (s_ref_resistor / 32768.0f);
-    if (!isfinite(r)) return MAX31865_ERROR;
+    if (!isfinite(r)) {
+        MAX31865_MUTEX_GIVE();
+        return MAX31865_ERROR;
+    }
     unsigned d = clamp_decimals(decimals);
-    if (d == 0) return (long)roundf(r);
-    if (d == 1) return (long)roundf(r * 10.0f);
-    return (long)roundf(r * 100.0f);
+    long val;
+    if (d == 0) val = (long)roundf(r);
+    else if (d == 1) val = (long)roundf(r * 10.0f);
+    else val = (long)roundf(r * 100.0f);
+    MAX31865_MUTEX_GIVE();
+    return val;
 }
 
-/* Solve Callendar–Van Dusen:
- * Input: measured resistance (ohms)
- * Output: temperature in °C (float)
- *
- * Strategy:
- * - Compute ratio = R / R0
- * - For T >= 0 => use quadratic analytic solution:
- *      B*T^2 + A*T + (1 - R/R0) = 0
- *   choose positive root: T = (-A + sqrt(A^2 - 4*B*(1 - R/R0))) / (2*B)
- *
- * - For T < 0 => use Newton-Raphson on f(T) = Rcalc(T) - Rmeas
- *   where Rcalc(T) = R0*(1 + A*T + B*T^2 + C*(T-100)*T^3)
- *   NR update: Tnew = Told - f(T)/f'(T)
- *   iterate up to N times until convergence.
- */
+/* Solve Callendar–Van Dusen */
 static float resistance_to_temperature_c(float r) {
+    // This is a static math function, no mutex needed.
     if (!isfinite(r) || r <= 0.0f) return NAN;
     double R0 = (double)s_rtd_nominal;
     double ratio = (double)r / R0;
@@ -670,7 +791,7 @@ static float resistance_to_temperature_c(float r) {
     double disc = b * b - 4.0 * a * c;
     if (disc >= 0.0) {
         double tpos = (-b + sqrt(disc)) / (2.0 * a);
-        double tneg = (-b - sqrt(disc)) / (2.0 * a);
+        // double tneg = (-b - sqrt(disc)) / (2.0 * a); // <-- REMOVED TO FIX WARNING
         /* choose the physically plausible root; for typical RTD  -200..850 C,
            tpos is usually >= 0 when ratio >=1; pick tpos if >=0 else use Newton-Raphson */
         if (tpos >= -1e-6) {
@@ -693,9 +814,6 @@ static float resistance_to_temperature_c(float r) {
         double Rcalc = R0 * (1.0 + CV_A * T + CV_B * T2 + CV_C * (T - 100.0) * T3);
         double f = Rcalc - (double)r;
         if (fabs(f) < 1e-6) break;
-        /* derivative f'(T) = R0 * (A + 2B*T + C*(4*T^3 - 300*T^2 + 30000*T - 10000?) ) - complicated.
-           We'll compute derivative numerically for stability or compute exact derivative:
-           R'(T) = R0*(A + 2*B*T + C*(4*T^3 - 300*T^2 + 30000*T - 10000)) ??? -> to avoid mistakes do numeric derivative */
         double h = 1e-4;
         double Tph = T + h;
         double Tph2 = Tph * Tph;
@@ -713,9 +831,13 @@ static float resistance_to_temperature_c(float r) {
 
 /* Public temperature read (C float) */
 float max31865_read_temperature_c_float(unsigned decimals) {
+    MAX31865_MUTEX_TAKE();
     unsigned d = clamp_decimals(decimals);
     float r = max31865_read_resistance_float();
-    if (!isfinite(r)) return NAN;
+    if (!isfinite(r)) {
+        MAX31865_MUTEX_GIVE();
+        return NAN;
+    }
     /* read fault status as well */
     uint8_t fault;
     if (max31865_read_fault_status(&fault) != 0) {
@@ -724,84 +846,211 @@ float max31865_read_temperature_c_float(unsigned decimals) {
     } else {
         s_last_fault = fault;
         if (fault != 0) {
+            MAX31865_MUTEX_GIVE();
             return NAN;
         }
     }
     float c = resistance_to_temperature_c(r);
-    if (!isfinite(c)) return NAN;
-    if (d == 0) return roundf(c);
-    if (d == 1) return roundf(c * 10.0f) / 10.0f;
-    return roundf(c * 100.0f) / 100.0f;
+    if (!isfinite(c)) {
+        MAX31865_MUTEX_GIVE();
+        return NAN;
+    }
+    
+    float val;
+    if (d == 0) val = roundf(c);
+    else if (d == 1) val = roundf(c * 10.0f) / 10.0f;
+    else val = roundf(c * 100.0f) / 100.0f;
+    
+    MAX31865_MUTEX_GIVE();
+    return val;
 }
 
 long max31865_read_temperature_c_int(unsigned decimals) {
+    MAX31865_MUTEX_TAKE();
     unsigned d = clamp_decimals(decimals);
     float r = max31865_read_resistance_float();
-    if (!isfinite(r)) return MAX31865_ERROR;
+    if (!isfinite(r)) {
+        MAX31865_MUTEX_GIVE();
+        return MAX31865_ERROR;
+    }
     uint8_t fault;
     if (max31865_read_fault_status(&fault) != 0) {
         s_last_fault = 0;
     } else {
         s_last_fault = fault;
-        if (fault != 0) return MAX31865_ERROR;
+        if (fault != 0) {
+            MAX31865_MUTEX_GIVE();
+            return MAX31865_ERROR;
+        }
     }
 
     float c = resistance_to_temperature_c(r);
-    if (!isfinite(c)) return MAX31865_ERROR;
+    if (!isfinite(c)) {
+        MAX31865_MUTEX_GIVE();
+        return MAX31865_ERROR;
+    }
 
-    if (d == 0) return (long)roundf(c);
-    if (d == 1) return (long)roundf(c * 10.0f);
-    return (long)roundf(c * 100.0f);
+    long val;
+    if (d == 0) val = (long)roundf(c);
+    else if (d == 1) val = (long)roundf(c * 10.0f);
+    else val = (long)roundf(c * 100.0f);
+    
+    MAX31865_MUTEX_GIVE();
+    return val;
 }
 
 /* Fahrenheit conversions */
 float max31865_read_temperature_f_float(unsigned decimals) {
+    MAX31865_MUTEX_TAKE();
     float c = max31865_read_temperature_c_float(3); /* get high precision */
-    if (!isfinite(c)) return NAN;
+    if (!isfinite(c)) {
+        MAX31865_MUTEX_GIVE();
+        return NAN;
+    }
     float f = c * 9.0f / 5.0f + 32.0f;
     unsigned d = clamp_decimals(decimals);
-    if (d == 0) return roundf(f);
-    if (d == 1) return roundf(f * 10.0f) / 10.0f;
-    return roundf(f * 100.0f) / 100.0f;
+    
+    float val;
+    if (d == 0) val = roundf(f);
+    else if (d == 1) val = roundf(f * 10.0f) / 10.0f;
+    else val = roundf(f * 100.0f) / 100.0f;
+    
+    MAX31865_MUTEX_GIVE();
+    return val;
 }
 
 long max31865_read_temperature_f_int(unsigned decimals) {
+    MAX31865_MUTEX_TAKE();
     long c100 = max31865_read_temperature_c_int(2); /* scaled x100 */
-    if (c100 == MAX31865_ERROR) return MAX31865_ERROR;
+    if (c100 == MAX31865_ERROR) {
+        MAX31865_MUTEX_GIVE();
+        return MAX31865_ERROR;
+    }
     float c = ((float)c100) / 100.0f;
     float f = c * 9.0f / 5.0f + 32.0f;
     unsigned d = clamp_decimals(decimals);
-    if (d == 0) return (long)roundf(f);
-    if (d == 1) return (long)roundf(f * 10.0f);
-    return (long)roundf(f * 100.0f);
+
+    long val;
+    if (d == 0) val = (long)roundf(f);
+    else if (d == 1) val = (long)roundf(f * 10.0f);
+    else val = (long)roundf(f * 100.0f);
+    
+    MAX31865_MUTEX_GIVE();
+    return val;
 }
 
 /* Debug setter */
 void max31865_set_debug(int verbosity) {
+    MAX31865_MUTEX_TAKE();
     s_debug = verbosity;
+    MAX31865_MUTEX_GIVE();
 }
+
+
+/* --- Added functions from new snippet (adapted to this library) --- */
+
+/* enable/disable continuous conversions and leave bias on when enabled */
+int max31865_set_continuous_mode(bool enable) {
+    MAX31865_MUTEX_TAKE();
+    uint8_t cfg;
+    if (read_config(&cfg) != 0) {
+        MAX31865_MUTEX_GIVE();
+        return -1;
+    }
+    
+    if (enable) {
+        cfg |= MAX31865_CONFIG_BIAS;   /* VBIAS on */
+        cfg |= MAX31865_CONFIG_AUTO;   /* Auto-conversion mode */
+        cfg &= ~MAX31865_CONFIG_ONE_SHOT; /* Ensure one-shot is off */
+    } else {
+        cfg &= ~MAX31865_CONFIG_AUTO;   /* Auto-conversion off */
+        cfg &= ~MAX31865_CONFIG_BIAS;  /* VBIAS off */
+    }
+    
+    if (write_config(cfg) != 0) {
+        MAX31865_MUTEX_GIVE();
+        return -2;
+    }
+    MAX31865_MUTEX_GIVE();
+    return 0;
+}
+
+
+/* read RTD and convert (existing conversion logic is used).
+   This wrapper implements spike-detection and retry. Returns last-good if transient. */
+float max31865_read_temperature_safe(void) {
+    MAX31865_MUTEX_TAKE();
+    
+    /* Read temperature using existing function (handles faults) */
+    /* Use 3 decimals for internal precision */
+    float t = max31865_read_temperature_c_float(3); 
+
+    if (!isfinite(t)) {
+        /* Read failed (e.g., fault). Retry once. */
+        platform_delay_ms(SPIKE_RETRY_MS);
+        t = max31865_read_temperature_c_float(3);
+
+        if (!isfinite(t)) {
+            /* Still bad? Return last good, or NAN if no last good */
+            float last_good = isnan(s_last_good_temp_c) ? NAN : s_last_good_temp_c;
+            MAX31865_MUTEX_GIVE();
+            return last_good;
+        }
+    }
+
+    /* spike detection */
+    if (isfinite(s_last_good_temp_c) && fabsf(t - s_last_good_temp_c) > SPIKE_DELTA_THRESHOLD_C) {
+        /* Suspicious spike. Retry once. */
+        platform_delay_ms(SPIKE_RETRY_MS);
+        float tc = max31865_read_temperature_c_float(3);
+
+        if (isfinite(tc) && fabsf(tc - s_last_good_temp_c) <= SPIKE_DELTA_THRESHOLD_C) {
+            /* Retry value is good and close to last good. Use it. */
+            t = tc;
+        } else {
+            /* Retry value is also bad or still a spike. Reject. */
+            float last_good = s_last_good_temp_c;
+            MAX31865_MUTEX_GIVE();
+            return last_good;
+        }
+    }
+
+    /* accept reading */
+    s_last_good_temp_c = t;
+    MAX31865_MUTEX_GIVE();
+    return t;
+}
+
+float max31865_get_last_good(void) {
+    MAX31865_MUTEX_TAKE();
+    float last_good = s_last_good_temp_c;
+    MAX31865_MUTEX_GIVE();
+    return last_good;
+}
+
+/* --- End of added functions --- */
+
 
 /* ------------------ Wiring notes & conversion delays (documentation) -------
  * Wiring:
- *  - MAX31865 breakout pins: VIN (3.3V), GND, SCK, SDI (MOSI), SDO (MISO), CS
- *  - For ESP32 use 3.3V only.
+ * - MAX31865 breakout pins: VIN (3.3V), GND, SCK, SDI (MOSI), SDO (MISO), CS
+ * - For ESP32 use 3.3V only.
  *
  * Recommended R_ref:
- *  - Adafruit breakout uses 430Ω for PT100 (R0=100Ω). For PT1000 boards it's often 4300Ω.
- *  - If you use PT100 (R0=100) and R_ref=430 use max31865_set_rtd_nominal(100.0, 430.0).
+ * - Adafruit breakout uses 430Ω for PT100 (R0=100Ω). For PT1000 boards it's often 4300Ω.
+ * - If you use PT100 (R0=100) and R_ref=430 use max31865_set_rtd_nominal(100.0, 430.0).
  *
  * 2/3/4-wire differences:
- *  - 2-wire: simplest, but wire resistance adds error.
- *  - 3-wire: offers lead-compensation using third wire; requires correct board jumper/config.
- *  - 4-wire: best accuracy; differential measurement removes lead resistance.
+ * - 2-wire: simplest, but wire resistance adds error.
+ * - 3-wire: offers lead-compensation using third wire; requires correct board jumper/config.
+ * - 4-wire: best accuracy; differential measurement removes lead resistance.
  *
  * Conversion delays:
- *  - Enable bias (VBIAS) then wait ~10 ms before a one-shot conversion.
- *  - One-shot conversion time depends on filter setting:
- *      - filter 50Hz -> typical conversion ~200 ms
- *      - filter 60Hz -> typical conversion ~100 ms
- *  - For safe operation use 200 ms; you can reduce to ~100 ms for 60 Hz or if you use continuous conversion.
+ * - Enable bias (VBIAS) then wait ~10 ms before a one-shot conversion.
+ * - One-shot conversion time depends on filter setting:
+ * - filter 50Hz -> typical conversion ~200 ms
+ * - filter 60Hz -> typical conversion ~100 ms
+ * - For safe operation use 200 ms; you can reduce to ~100 ms for 60 Hz or if you use continuous conversion.
  * ------------------------------------------------------------------------- */
 
 /* ------------------ End of implementation ------------------ */
-

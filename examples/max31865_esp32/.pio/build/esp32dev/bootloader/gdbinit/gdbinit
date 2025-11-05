@@ -1,2 +1,2 @@
-source C:/kowshik/max31865/max31865_espidf/.pio/build/esp32dev/bootloader/gdbinit/symbols
-source C:/kowshik/max31865/max31865_espidf/.pio/build/esp32dev/bootloader/gdbinit/connect
+source C:/dev/brahm_works/BrahmWiki-MAX31865_PT100-thermo/examples/max31865_esp32/.pio/build/esp32dev/bootloader/gdbinit/symbols
+source C:/dev/brahm_works/BrahmWiki-MAX31865_PT100-thermo/examples/max31865_esp32/.pio/build/esp32dev/bootloader/gdbinit/connect

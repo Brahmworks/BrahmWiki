@@ -1,8 +1,8 @@
-# Install script for directory: C:/Users/Brahmworks/.platformio/packages/framework-espidf/components/esp_driver_pcnt
+# Install script for directory: C:/Users/vsaik/.platformio/packages/framework-espidf/components/esp_driver_pcnt
 
 # Set the install prefix
 if(NOT DEFINED CMAKE_INSTALL_PREFIX)
-  set(CMAKE_INSTALL_PREFIX "C:/Program Files (x86)/max31865_espidf")
+  set(CMAKE_INSTALL_PREFIX "C:/Program Files (x86)/max31865_esp32")
 endif()
 string(REGEX REPLACE "/$" "" CMAKE_INSTALL_PREFIX "${CMAKE_INSTALL_PREFIX}")
 
@@ -30,5 +30,10 @@ endif()
 # Is this installation the result of a crosscompile?
 if(NOT DEFINED CMAKE_CROSSCOMPILING)
   set(CMAKE_CROSSCOMPILING "TRUE")
+endif()
+
+# Set path to fallback-tool for dependency-resolution.
+if(NOT DEFINED CMAKE_OBJDUMP)
+  set(CMAKE_OBJDUMP "C:/Users/vsaik/.platformio/packages/toolchain-xtensa-esp-elf/bin/xtensa-esp32-elf-objdump.exe")
 endif()
 

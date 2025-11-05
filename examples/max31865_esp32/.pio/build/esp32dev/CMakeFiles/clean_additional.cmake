@@ -1,6 +1,8 @@
 # Additional clean files
+cmake_minimum_required(VERSION 3.16)
 
-file(REMOVE_RECURSE
+if("${CONFIG}" STREQUAL "" OR "${CONFIG}" STREQUAL "")
+  file(REMOVE_RECURSE
   "bootloader\\bootloader.bin"
   "bootloader\\bootloader.elf"
   "bootloader\\bootloader.map"
@@ -14,8 +16,9 @@ file(REMOVE_RECURSE
   "flasher_args.json"
   "ldgen_libraries"
   "ldgen_libraries.in"
-  "max31865_espidf.bin"
-  "max31865_espidf.map"
+  "max31865_esp32.bin"
+  "max31865_esp32.map"
   "project_elf_src_esp32.c"
   "x509_crt_bundle.S"
-)
+  )
+endif()

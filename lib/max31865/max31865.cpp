@@ -142,7 +142,7 @@ static int s_debug = 0;
 
 /* --- Added from new snippet --- */
 static float s_last_good_temp_c = NAN;
-static const float SPIKE_DELTA_THRESHOLD_C = 10.0f; // tuneable
+static const float SPIKE_DELTA_THRESHOLD_C = 2.0f; // tuneable
 static const uint32_t SPIKE_RETRY_MS = 50;
 /* --- End of added variables --- */
 

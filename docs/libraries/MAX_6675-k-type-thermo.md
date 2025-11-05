@@ -1,28 +1,36 @@
-# README — MAX6675 (K-type Thermocouple) 
+
+-----
+
+# README — MAX6675 (K-type Thermocouple)
 
 ## Overview
 
 This small, cross-platform C-style library provides an easy API to read a K-type thermocouple using the MAX6675 IC on Arduino (UNO/MEGA) and ESP-IDF (ESP32).
 
--   **Files**: `max6675.h` and `max6675.cpp` (drop these into your project; no renaming required).
--   **Key highlights**:
-    -   Hardware (SPI) and Software (bit-banged) SPI supported.
-    -   Same API for both platforms.
-    -   Fault detection (thermocouple open) — floats return `NAN`, integer reads return `MAX6675_ERROR`.
-    -   Decimal precision handling (0..2).
+  * **Files**: `max6675.h` and `max6675.cpp` (drop these into your project; no renaming required).
+  * **Key highlights**:
+      * Hardware (SPI) and Software (bit-banged) SPI supported.
+      * Same API for both platforms.
+      * Fault detection (thermocouple open) — floats return `NAN`, integer reads return `MAX6675_ERROR`.
+      * Decimal precision handling (0..2).
 
----
+-----
 
 ## Integration (Where to put files)
 
--   **PlatformIO / Arduino**: place `max6675.h` + `max6675.cpp` inside `lib/max6675/src/` or `src/`.
--   **ESP-IDF**: place them inside `components/max6675/` or compile them into your component.
+  * **PlatformIO / Arduino**: place `max6675.h` + `max6675.cpp` inside `lib/max6675/src/` or `src/`.
+  * **ESP-IDF**: place them inside `components/max6675/` or compile them into your component.
 
-Make sure your project uses the correct framework:
--   Arduino projects use `framework = arduino`
--   ESP-IDF projects use `framework = espidf`
+-----
 
----
+## ESP-IDF Production Readiness
+
+This library is now **ESP-IDF multitasking**.
+
+1.  **Thread-Safe:** All public functions are protected by a mutex. You can safely call `max6675_read_celsius_float()` from different tasks without crashing.
+2.  **Multi-Device Compatible:** The library's internal (static) variables have been renamed (e.g., `s_max6675_spi_dev`). This **prevents conflicts** with other sensor libraries (like `max31865`) that are also on the SPI bus.
+
+-----
 
 ## Key API (summary)
 
@@ -44,7 +52,7 @@ long  max6675_read_fahrenheit_int(unsigned decimals);
 bool  max6675_is_open(void);
 
 #define MAX6675_ERROR  ((long)0x80000000L)
-````
+```
 
 **Notes:**
 
@@ -96,19 +104,44 @@ void loop() {
 
 ## Quick Start — ESP-IDF (ESP32) Example
 
-Common default pins used in examples: SCLK=18, MISO=19, MOSI=23, CS=5.
-Do this in `app_main()` (or equivalent):
+This example initializes the device. For a full multi-tasking example, see the `pid_heater` library README, which integrates this sensor.
+
+Common default pins used in examples: SCLK=18, MISO=19, MOSI=23.
 
 ```c
-// Initialize SPI bus
-spi_bus_config_t buscfg = { .miso_io_num = 19, .mosi_io_num = 23, .sclk_io_num = 18, ... };
-spi_bus_initialize(HSPI_HOST, &buscfg, SPI_DMA_CH_AUTO);
+#include "driver/spi_master.h"
+#include "max6675.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
 
-// Initialize the device
-max6675_init_hw(5, 400000); // CS=5, clock 400kHz
+#define CS_PIN 5
+
+void app_main(void) {
+    // 1. Initialize SPI bus (HSPI_HOST)
+    spi_bus_config_t buscfg = {
+      .miso_io_num = 19,
+      .mosi_io_num = 23,
+      .sclk_io_num = 18,
+      .quadwp_io_num = -1,
+      .quadhd_io_num = -1
+    };
+    spi_bus_initialize(HSPI_HOST, &buscfg, SPI_DMA_CH_AUTO);
+
+    // 2. Initialize the device
+    max6675_init_hw(CS_PIN, 1000000); // CS=5, clock 1MHz
+
+    // 3. Read in a loop
+    while(1) {
+        float c = max6675_read_celsius_float(2);
+        if (!isnan(c)) {
+            printf("Temperature: %.2f C\n", c);
+        } else {
+            printf("Read error or thermocouple open\n");
+        }
+        vTaskDelay(pdMS_TO_TICKS(1000));
+    }
+}
 ```
-
-Then call the same API as Arduino. Use `ESP_LOGI` for logging.
 
 -----
 
@@ -116,9 +149,9 @@ Then call the same API as Arduino. Use `ESP_LOGI` for logging.
 
 If the ADC read or communication fails, or if the MAX6675 D2 fault bit indicates an open thermocouple:
 
-  - Float functions return `NAN`.
-  - Int functions return `MAX6675_ERROR`.
-  - `max6675_is_open()` returns `true`.
+  * Float functions return `NAN`.
+  * Int functions return `MAX6675_ERROR`.
+  * `max6675_is_open()` returns `true`.
 
 Always check for `isnan()` or equality with `MAX6675_ERROR` after calls.
 
@@ -128,11 +161,9 @@ Always check for `isnan()` or equality with `MAX6675_ERROR` after calls.
 
 If all reads return `0` or `0.00`:
 
-  - Confirm the **CS pin** is wired correctly and toggling.
-  - Confirm SPI mode/clock or swap to **SW SPI** to isolate driver vs. wiring issues.
+  * Confirm the **CS pin** is wired correctly and toggling.
+  * Confirm SPI mode/clock or swap to **SW SPI** to isolate driver vs. wiring issues.
 
 If you get `NAN` / `MAX6675_ERROR`:
 
-  - The thermocouple may be open. Check the thermocouple connector and wiring.
-
-<!-- end list -->
+  * The thermocouple may be open. Check the thermocouple connector and wiring.

@@ -1,0 +1,14 @@
+{
+	"backtraceGraph" : 
+	{
+		"commands" : [],
+		"files" : [],
+		"nodes" : []
+	},
+	"installers" : [],
+	"paths" : 
+	{
+		"build" : "esp-idf/esp_coex",
+		"source" : "C:/Users/vsaik/.platformio/packages/framework-espidf/components/esp_coex"
+	}
+}

@@ -151,7 +151,7 @@ static const uint32_t SPIKE_RETRY_MS = 50;
 // --- RENAMED STATIC VARIABLES ---
 static spi_device_handle_t s_max31865_spi_dev = NULL;
 static bool s_max31865_bus_initialized = false;
-// static const char *TAG = "max31865"; // <-- REMOVED TO FIX WARNING
+// static const char *TAG = "max31865"; // Unused
 #endif
 
 /* ------------------ Utility: clamp decimals ------------------ */
@@ -187,7 +187,7 @@ static int spi_write_register(uint8_t regaddr, uint8_t value) {
 
 #if defined(ESP_PLATFORM)
     if (s_mode != MAX31865_MODE_HW) return -1;
-    if (!s_max31865_spi_dev) return -2; // <-- Use renamed variable
+    if (!s_max31865_spi_dev) return -2; 
 
     /* Small-transfer fast path: <=2 bytes -> use rx/txdata if available */
 #if MAX31865_ESP_SAFE_SPI == 0
@@ -197,7 +197,7 @@ static int spi_write_register(uint8_t regaddr, uint8_t value) {
     t.flags = SPI_TRANS_USE_TXDATA;
     t.tx_data[0] = txbuf[0];
     t.tx_data[1] = txbuf[1];
-    esp_err_t ret = spi_device_polling_transmit(s_max31865_spi_dev, &t); // <-- Use renamed variable
+    esp_err_t ret = spi_device_polling_transmit(s_max31865_spi_dev, &t); 
     if (ret != ESP_OK) return -3;
     return 0;
 #else
@@ -210,7 +210,7 @@ static int spi_write_register(uint8_t regaddr, uint8_t value) {
     memset(&t, 0, sizeof(t));
     t.length = 2 * 8;
     t.tx_buffer = tx;
-    esp_err_t ret = spi_device_transmit(s_max31865_spi_dev, &t); // <-- Use renamed variable
+    esp_err_t ret = spi_device_transmit(s_max31865_spi_dev, &t); 
     heap_caps_free(tx);
     if (ret != ESP_OK) return -5;
     return 0;
@@ -238,7 +238,7 @@ static int spi_read_registers(uint8_t regaddr, uint8_t *out, size_t len) {
 
 #if defined(ESP_PLATFORM)
     if (s_mode != MAX31865_MODE_HW) return -2;
-    if (!s_max31865_spi_dev) return -3; // <-- Use renamed variable
+    if (!s_max31865_spi_dev) return -3; 
 
     /* If len+1 <= 3 use small-transfer polling path (address + ≤2 data bytes)
        using SPI_TRANS_USE_RXDATA / TXDATA. Else use heap buffers for DMA safety. */
@@ -280,7 +280,7 @@ static int spi_read_registers(uint8_t regaddr, uint8_t *out, size_t len) {
         t.length = total * 8;
         t.tx_buffer = tx;
         t.rx_buffer = rx;
-        esp_err_t ret = spi_device_transmit(s_max31865_spi_dev, &t); // <-- Use renamed variable
+        esp_err_t ret = spi_device_transmit(s_max31865_spi_dev, &t); 
         if (ret != ESP_OK) {
             heap_caps_free(tx);
             heap_caps_free(rx);
@@ -446,12 +446,11 @@ int max31865_init_hw(int cs_pin, uint32_t clock_hz) {
 
     esp_err_t ret = spi_bus_initialize(HSPI_HOST, &buscfg, SPI_DMA_CH_AUTO);
     if (ret == ESP_OK) {
-        s_max31865_bus_initialized = true; // <-- Use renamed variable
+        s_max31865_bus_initialized = true; 
     } else if (ret == ESP_ERR_INVALID_STATE) {
-        s_max31865_bus_initialized = true; // <-- Use renamed variable
+        s_max31865_bus_initialized = true; 
     } else {
-        /* Not fatal; continue and try to add device (may fail) */
-        s_max31865_bus_initialized = false; // <-- Use renamed variable
+        s_max31865_bus_initialized = false; 
     }
 
     spi_device_interface_config_t devcfg;
@@ -462,9 +461,9 @@ int max31865_init_hw(int cs_pin, uint32_t clock_hz) {
     devcfg.queue_size = 1;
     devcfg.flags = 0; /* full-duplex recommended (see caution) */
 
-    ret = spi_bus_add_device(HSPI_HOST, &devcfg, &s_max31865_spi_dev); // <-- Use renamed variable
+    ret = spi_bus_add_device(HSPI_HOST, &devcfg, &s_max31865_spi_dev); 
     if (ret != ESP_OK) {
-        s_max31865_spi_dev = NULL; // <-- Use renamed variable
+        s_max31865_spi_dev = NULL; 
         MAX31865_MUTEX_GIVE();
         return -10;
     }
@@ -544,13 +543,13 @@ void max31865_deinit(void) {
     MAX31865_MUTEX_TAKE();
     
 #if defined(ESP_PLATFORM)
-    if (s_max31865_spi_dev) { // <-- Use renamed variable
-        spi_bus_remove_device(s_max31865_spi_dev); // <-- Use renamed variable
-        s_max31865_spi_dev = NULL; // <-- Use renamed variable
+    if (s_max31865_spi_dev) { 
+        spi_bus_remove_device(s_max31865_spi_dev); 
+        s_max31865_spi_dev = NULL; 
     }
     /* Do not call spi_bus_free to avoid interfering with other components */
     s_max31865_bus_initialized = false; // <-- Use renamed variable
-    
+   
 #elif defined(ARDUINO)
     /* Leave SPI as shared. */
 #endif
@@ -679,12 +678,18 @@ int max31865_read_raw(uint16_t *out_raw) {
     }
     if (rc != 0) {
         MAX31865_MUTEX_GIVE();
-        return -2;
+        return -2; // Comms error
     }
 
-    /* Combine MSB and LSB (MSB first), then shift right by 1 (LSB bit0 is fault) */
-    uint16_t msb = buf[0];
     uint16_t lsb = buf[1];
+    
+    // Check the LSB (Bit 0) of the LSB byte. It indicates a fault.
+    if (lsb & 0x01) {
+        MAX31865_MUTEX_GIVE();
+        return -3; // RTD Fault (short/open)
+    }
+
+    uint16_t msb = buf[0];
     uint16_t raw = (uint16_t)((msb << 8) | lsb) >> 1;
     *out_raw = raw;
     MAX31865_MUTEX_GIVE();
@@ -721,7 +726,7 @@ int max31865_read_fault_status(uint8_t *out_fault) {
         MAX31865_MUTEX_GIVE();
         return -2;
     }
-    s_last_fault = buf;
+    s_last_fault = buf; // Cache the fault
     *out_fault = buf;
     MAX31865_MUTEX_GIVE();
     return 0;
@@ -745,11 +750,10 @@ bool max31865_has_fault(void) {
 float max31865_read_resistance_float(void) {
     MAX31865_MUTEX_TAKE();
     uint16_t raw;
-    // Note: read_raw() will also call TAKE/GIVE, which is fine
-    // because the mutex is recursive.
+    // read_raw() now checks the LSB fault bit and will return an error
     if (max31865_read_raw(&raw) != 0) {
         MAX31865_MUTEX_GIVE();
-        return NAN;
+        return NAN; // Will be NAN on comms error OR RTD fault
     }
     float r = ((float)raw) * (s_ref_resistor / 32768.0f);
     MAX31865_MUTEX_GIVE();
@@ -758,16 +762,12 @@ float max31865_read_resistance_float(void) {
 
 long max31865_read_resistance_int(unsigned decimals) {
     MAX31865_MUTEX_TAKE();
-    uint16_t raw;
-    if (max31865_read_raw(&raw) != 0) {
-        MAX31865_MUTEX_GIVE();
-        return MAX31865_ERROR;
-    }
-    float r = ((float)raw) * (s_ref_resistor / 32768.0f);
+    float r = max31865_read_resistance_float(); // This now checks for NAN
     if (!isfinite(r)) {
         MAX31865_MUTEX_GIVE();
         return MAX31865_ERROR;
     }
+
     unsigned d = clamp_decimals(decimals);
     long val;
     if (d == 0) val = (long)roundf(r);
@@ -833,27 +833,41 @@ static float resistance_to_temperature_c(float r) {
 float max31865_read_temperature_c_float(unsigned decimals) {
     MAX31865_MUTEX_TAKE();
     unsigned d = clamp_decimals(decimals);
+    
+    // This call now returns NAN on LSB fault bit OR comms error
     float r = max31865_read_resistance_float();
-    if (!isfinite(r)) {
-        MAX31865_MUTEX_GIVE();
-        return NAN;
-    }
-    /* read fault status as well */
+
+    /* * We MUST read the separate fault status register (0x07) *every time*
+     * to update our s_last_fault cache. This is true EVEN IF r is NAN,
+     * because r might be NAN *because* of a fault we need to cache.
+     */
     uint8_t fault;
     if (max31865_read_fault_status(&fault) != 0) {
-        /* ignore perhaps, rely on RTD validity */
-        s_last_fault = 0;
-    } else {
-        s_last_fault = fault;
-        if (fault != 0) {
-            MAX31865_MUTEX_GIVE();
-            return NAN;
-        }
+        s_last_fault = 0; // Comms error, clear cache
+        MAX31865_MUTEX_GIVE();
+        return NAN; // Return NAN for comms error
     }
+    
+    s_last_fault = fault; // Cache the fault
+    
+    if (fault != 0) {
+        MAX31865_MUTEX_GIVE();
+        return NAN; // A fault was latched in the 0x07 register
+    }
+    
+    if (!isfinite(r)) {
+        // r is NAN, but the fault register is clear.
+        // This means the LSB fault bit triggered in read_raw().
+        // This is a valid fault condition.
+        MAX31865_MUTEX_GIVE();
+        return NAN; 
+    }
+    
+    // If we get here, r is a valid number AND fault register is clear.
     float c = resistance_to_temperature_c(r);
     if (!isfinite(c)) {
         MAX31865_MUTEX_GIVE();
-        return NAN;
+        return NAN; // Math failed (e.g. bad resistance)
     }
     
     float val;
@@ -867,33 +881,19 @@ float max31865_read_temperature_c_float(unsigned decimals) {
 
 long max31865_read_temperature_c_int(unsigned decimals) {
     MAX31865_MUTEX_TAKE();
+    // We can just call the float function which now does all the checks
+    float c_float = max31865_read_temperature_c_float(3);
+
+    if (!isfinite(c_float)) {
+        MAX31865_MUTEX_GIVE();
+        return MAX31865_ERROR;
+    }
+
     unsigned d = clamp_decimals(decimals);
-    float r = max31865_read_resistance_float();
-    if (!isfinite(r)) {
-        MAX31865_MUTEX_GIVE();
-        return MAX31865_ERROR;
-    }
-    uint8_t fault;
-    if (max31865_read_fault_status(&fault) != 0) {
-        s_last_fault = 0;
-    } else {
-        s_last_fault = fault;
-        if (fault != 0) {
-            MAX31865_MUTEX_GIVE();
-            return MAX31865_ERROR;
-        }
-    }
-
-    float c = resistance_to_temperature_c(r);
-    if (!isfinite(c)) {
-        MAX31865_MUTEX_GIVE();
-        return MAX31865_ERROR;
-    }
-
     long val;
-    if (d == 0) val = (long)roundf(c);
-    else if (d == 1) val = (long)roundf(c * 10.0f);
-    else val = (long)roundf(c * 100.0f);
+    if (d == 0) val = (long)roundf(c_float);
+    else if (d == 1) val = (long)roundf(c_float * 10.0f);
+    else val = (long)roundf(c_float * 100.0f);
     
     MAX31865_MUTEX_GIVE();
     return val;
@@ -985,16 +985,16 @@ float max31865_read_temperature_safe(void) {
     /* Use 3 decimals for internal precision */
     float t = max31865_read_temperature_c_float(3); 
 
-    if (!isfinite(t)) {
-        /* Read failed (e.g., fault). Retry once. */
+    if (!isfinite(t)) { // t is NAN (a hard fault)
+        // Retry once for transient faults
         platform_delay_ms(SPIKE_RETRY_MS);
         t = max31865_read_temperature_c_float(3);
 
-        if (!isfinite(t)) {
-            /* Still bad? Return last good, or NAN if no last good */
-            float last_good = isnan(s_last_good_temp_c) ? NAN : s_last_good_temp_c;
+        if (!isfinite(t)) { // Still NAN
+            // This is a hard fault (NAN), not a spike.
+            // Propagate the NAN up. Do NOT return the old value.
             MAX31865_MUTEX_GIVE();
-            return last_good;
+            return NAN; 
         }
     }
 
@@ -1009,6 +1009,7 @@ float max31865_read_temperature_safe(void) {
             t = tc;
         } else {
             /* Retry value is also bad or still a spike. Reject. */
+            /* This is where we DO return the last good value. */
             float last_good = s_last_good_temp_c;
             MAX31865_MUTEX_GIVE();
             return last_good;
@@ -1052,5 +1053,4 @@ float max31865_get_last_good(void) {
  * - filter 60Hz -> typical conversion ~100 ms
  * - For safe operation use 200 ms; you can reduce to ~100 ms for 60 Hz or if you use continuous conversion.
  * ------------------------------------------------------------------------- */
-
 /* ------------------ End of implementation ------------------ */

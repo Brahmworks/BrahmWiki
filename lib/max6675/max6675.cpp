@@ -2,8 +2,11 @@
  * max6675.cpp
  *
  * Single implementation file that compiles on:
- *  - Arduino (ARDUINO defined)
- *  - ESP-IDF (ESP_PLATFORM defined)
+ * - Arduino (ARDUINO defined)
+ * - ESP-IDF (ESP_PLATFORM defined)
+ *
+ * - ESP-IDF: This version is THREAD-SAFE. It uses a recursive mutex
+ * and renamed static variables (s_max6675_*) to prevent conflicts.
  *
  * See max6675.h for API.
  */
@@ -18,6 +21,10 @@
   #include "driver/gpio.h"
   #include "esp_err.h"
   #include "esp_rom_sys.h" /* for esp_rom_delay_us */
+  // --- THREAD-SAFETY ADDITIONS ---
+  #include "freertos/FreeRTOS.h"
+  #include "freertos/semphr.h"
+  // --- END THREAD-SAFETY ---
 #elif defined(ARDUINO)
   /* Arduino */
   #include <Arduino.h>
@@ -25,6 +32,40 @@
 #else
   #error "Either ESP_PLATFORM (ESP-IDF) or ARDUINO must be defined"
 #endif
+
+/* ------------------ Thread-Safety Mutex (ESP-IDF Only) ------------------ */
+
+#if defined(ESP_PLATFORM)
+    static SemaphoreHandle_t s_max6675_lib_mutex = NULL;
+
+    // Helper function to create the mutex on first use
+    static void max6675_init_mutex(void) {
+        if (s_max6675_lib_mutex == NULL) {
+            s_max6675_lib_mutex = xSemaphoreCreateRecursiveMutex();
+        }
+    }
+
+    #define MAX6675_MUTEX_TAKE() do { \
+        max6675_init_mutex(); /* Create if it doesn't exist */ \
+        if (s_max6675_lib_mutex) { \
+            xSemaphoreTakeRecursive(s_max6675_lib_mutex, portMAX_DELAY); \
+        } \
+    } while(0)
+    
+    #define MAX6675_MUTEX_GIVE() do { \
+        if (s_max6675_lib_mutex) { \
+            xSemaphoreGiveRecursive(s_max6675_lib_mutex); \
+        } \
+    } while(0)
+#else
+    // On Arduino, these macros do nothing.
+    #define MAX6675_MUTEX_TAKE()
+    #define MAX6675_MUTEX_GIVE()
+#endif
+
+
+/* Fault bit (D2) indicates an open thermocouple */
+#define MAX6675_FAULT_BIT 0x04
 
 /* ---------- Internal state ---------- */
 
@@ -35,13 +76,14 @@ static enum {
 } s_mode = MAX6675_MODE_NONE;
 
 static int s_cs = -1;
-static int s_sck = -1;   /* used for SW mode */
-static int s_miso = -1;  /* used for SW mode */
+static int s_sck = -1;  /* used for SW mode */
+static int s_miso = -1; /* used for SW mode */
 static uint32_t s_clock_hz = 400000; /* default */
 
 #if defined(ESP_PLATFORM)
-static spi_device_handle_t s_spi_dev = NULL;
-static bool s_esp_bus_initialized = false;
+// --- RENAMED STATIC VARIABLES ---
+static spi_device_handle_t s_max6675_spi_dev = NULL;
+static bool s_max6675_bus_initialized = false;
 #elif defined(ARDUINO)
 static SPISettings s_spi_settings(400000, MSBFIRST, SPI_MODE0);
 #endif
@@ -54,7 +96,8 @@ static unsigned clamp_decimals(unsigned d) {
 }
 
 static float raw_to_celsius_or_nan(uint16_t raw) {
-    if (raw & 0x4) {
+    /* Check D2 fault bit for open thermocouple */
+    if (raw & MAX6675_FAULT_BIT) {
         return NAN;
     }
     uint16_t temp12 = raw >> 3;
@@ -70,23 +113,29 @@ static int read16_internal(uint16_t *out_raw) {
 #if defined(ESP_PLATFORM)
 
     if (s_mode == MAX6675_MODE_HW) {
-        if (!s_spi_dev) return -3;
+        if (!s_max6675_spi_dev) return -3; // <-- Use renamed variable
         esp_err_t ret;
         spi_transaction_t t;
         memset(&t, 0, sizeof(t));
-        t.length = 16; /* bits */
-        t.rxlength = 16;
-        t.flags = SPI_TRANS_USE_RXDATA | SPI_TRANS_USE_TXDATA;
-        /* tx_data defaults to zeros; perform a polling transmit */
-        ret = spi_device_polling_transmit(s_spi_dev, &t);
+        
+        /* Use stack-allocated buffers per user request (no heap, no USE_RXDATA) */
+        uint8_t tx_buf[2] = {0x00, 0x00};
+        uint8_t rx_buf[2];
+
+        t.length = 16; /* 16 bits */
+        t.tx_buffer = tx_buf;
+        t.rx_buffer = rx_buf;
+
+        ret = spi_device_polling_transmit(s_max6675_spi_dev, &t); // <-- Use renamed variable
         if (ret != ESP_OK) {
             return -4;
         }
-        /* rx data available in t.rx_data (first two bytes) */
-        uint8_t *rbytes = t.rx_data;
-        uint16_t rx = (uint16_t)rbytes[0] << 8 | (uint16_t)rbytes[1];
+        
+        /* Combine received bytes (MSB first) */
+        uint16_t rx = ((uint16_t)rx_buf[0] << 8) | (uint16_t)rx_buf[1];
         *out_raw = rx;
         return 0;
+
     } else { /* SW bitbanged on ESP */
         if (s_cs < 0 || s_sck < 0 || s_miso < 0) return -5;
         gpio_set_level((gpio_num_t)s_cs, 0);
@@ -106,7 +155,7 @@ static int read16_internal(uint16_t *out_raw) {
     }
 
 #elif defined(ARDUINO)
-
+    // ... (Arduino code is unchanged) ...
     if (s_mode == MAX6675_MODE_HW) {
         if (s_cs < 0) return -6;
         digitalWrite(s_cs, LOW);
@@ -143,6 +192,8 @@ static int read16_internal(uint16_t *out_raw) {
 /* ---------- Public API ---------- */
 
 int max6675_init_hw(int cs_pin, uint32_t clock_hz) {
+    MAX6675_MUTEX_TAKE();
+    
     max6675_deinit();
     s_cs = cs_pin;
     s_clock_hz = clock_hz ? clock_hz : 400000;
@@ -162,10 +213,10 @@ int max6675_init_hw(int cs_pin, uint32_t clock_hz) {
 
     ret = spi_bus_initialize(HSPI_HOST, &buscfg, SPI_DMA_CH_AUTO);
     if (ret == ESP_OK) {
-        s_esp_bus_initialized = true;
+        s_max6675_bus_initialized = true; // <-- Use renamed variable
     } else if (ret == ESP_ERR_INVALID_STATE) {
         /* bus already initialized externally; treat as OK */
-        s_esp_bus_initialized = true;
+        s_max6675_bus_initialized = true; // <-- Use renamed variable
     } else {
         /* continue and attempt to add device - spi_bus_add_device may still fail */
     }
@@ -181,33 +232,39 @@ int max6675_init_hw(int cs_pin, uint32_t clock_hz) {
     devcfg.flags = 0;
 
 
-    ret = spi_bus_add_device(HSPI_HOST, &devcfg, &s_spi_dev);
+    ret = spi_bus_add_device(HSPI_HOST, &devcfg, &s_max6675_spi_dev); // <-- Use renamed variable
     if (ret != ESP_OK) {
-        s_spi_dev = NULL;
+        s_max6675_spi_dev = NULL; // <-- Use renamed variable
+        MAX6675_MUTEX_GIVE();
         return -10;
     }
     s_mode = MAX6675_MODE_HW;
+    MAX6675_MUTEX_GIVE();
     return 0;
 
 #elif defined(ARDUINO)
-
+    // ... (Arduino code is unchanged) ...
     pinMode(s_cs, OUTPUT);
     digitalWrite(s_cs, HIGH);
     s_spi_settings = SPISettings(s_clock_hz, MSBFIRST, SPI_MODE0);
     SPI.begin();
     s_mode = MAX6675_MODE_HW;
+    MAX6675_MUTEX_GIVE();
     return 0;
 
 #endif
 }
 
 int max6675_init_sw(int cs_pin, int sck_pin, int miso_pin) {
+    MAX6675_MUTEX_TAKE();
+    
     max6675_deinit();
     s_cs = cs_pin;
     s_sck = sck_pin;
     s_miso = miso_pin;
 
 #if defined(ESP_PLATFORM)
+    // ... (ESP32 code is unchanged) ...
     /* Configure GPIOs for SW SPI */
     gpio_config_t io_conf;
     memset(&io_conf, 0, sizeof(io_conf));
@@ -232,10 +289,11 @@ int max6675_init_sw(int cs_pin, int sck_pin, int miso_pin) {
     gpio_set_level((gpio_num_t)s_sck, 0);
 
     s_mode = MAX6675_MODE_SW;
+    MAX6675_MUTEX_GIVE();
     return 0;
 
 #elif defined(ARDUINO)
-
+    // ... (Arduino code is unchanged) ...
     pinMode(s_cs, OUTPUT);
     pinMode(s_sck, OUTPUT);
     pinMode(s_miso, INPUT);
@@ -243,23 +301,29 @@ int max6675_init_sw(int cs_pin, int sck_pin, int miso_pin) {
     digitalWrite(s_sck, LOW);
 
     s_mode = MAX6675_MODE_SW;
+    MAX6675_MUTEX_GIVE();
     return 0;
 
 #endif
 }
 
 void max6675_deinit(void) {
+    MAX6675_MUTEX_TAKE();
+    
 #if defined(ESP_PLATFORM)
-    if (s_spi_dev) {
-        spi_bus_remove_device(s_spi_dev);
-        s_spi_dev = NULL;
+    if (s_max6675_spi_dev) { // <-- Use renamed variable
+        spi_bus_remove_device(s_max6675_spi_dev); // <-- Use renamed variable
+        s_max6675_spi_dev = NULL; // <-- Use renamed variable
     }
     /* We do not call spi_bus_free here to avoid interfering with other components */
-    s_esp_bus_initialized = false;
+    s_max6675_bus_initialized = false; // <-- Use renamed variable
     if (s_cs >= 0) {
-        gpio_set_level((gpio_num_t)s_cs, 0);
+        if (s_mode == MAX6675_MODE_SW) {
+             gpio_reset_pin((gpio_num_t)s_cs);
+        }
     }
 #elif defined(ARDUINO)
+    // ... (Arduino code is unchanged) ...
     if (s_cs >= 0) {
         digitalWrite(s_cs, LOW);
     }
@@ -267,65 +331,113 @@ void max6675_deinit(void) {
 
     s_mode = MAX6675_MODE_NONE;
     s_cs = s_sck = s_miso = -1;
+    
+    MAX6675_MUTEX_GIVE();
 }
 
 int max6675_read_raw(uint16_t *out_raw) {
-    return read16_internal(out_raw);
+    MAX6675_MUTEX_TAKE();
+    int ret = read16_internal(out_raw);
+    MAX6675_MUTEX_GIVE();
+    return ret;
 }
 
 float max6675_read_celsius_float(unsigned decimals) {
+    MAX6675_MUTEX_TAKE();
     uint16_t raw;
     int ret = read16_internal(&raw);
-    if (ret != 0) return NAN;
+    if (ret != 0) {
+        MAX6675_MUTEX_GIVE();
+        return NAN;
+    }
     float c = raw_to_celsius_or_nan(raw);
-    if (isnan(c)) return NAN;
+    if (isnan(c)) {
+        MAX6675_MUTEX_GIVE();
+        return NAN;
+    }
     unsigned d = clamp_decimals(decimals);
-    if (d == 0) return roundf(c);
-    if (d == 1) return roundf(c * 10.0f) / 10.0f;
-    return roundf(c * 100.0f) / 100.0f;
+    float val;
+    if (d == 0) val = roundf(c);
+    else if (d == 1) val = roundf(c * 10.0f) / 10.0f;
+    else val = roundf(c * 100.0f) / 100.0f;
+    
+    MAX6675_MUTEX_GIVE();
+    return val;
 }
 
 float max6675_read_fahrenheit_float(unsigned decimals) {
+    MAX6675_MUTEX_TAKE();
     float c = max6675_read_celsius_float(3);
-    if (isnan(c)) return NAN;
+    if (isnan(c)) {
+        MAX6675_MUTEX_GIVE();
+        return NAN;
+    }
     float f = c * 9.0f / 5.0f + 32.0f;
     unsigned d = clamp_decimals(decimals);
-    if (d == 0) return roundf(f);
-    if (d == 1) return roundf(f * 10.0f) / 10.0f;
-    return roundf(f * 100.0f) / 100.0f;
+    float val;
+    if (d == 0) val = roundf(f);
+    else if (d == 1) val = roundf(f * 10.0f) / 10.0f;
+    else val = roundf(f * 100.0f) / 100.0f;
+    
+    MAX6675_MUTEX_GIVE();
+    return val;
 }
 
 long max6675_read_celsius_int(unsigned decimals) {
+    MAX6675_MUTEX_TAKE();
     uint16_t raw;
     int ret = read16_internal(&raw);
-    if (ret != 0) return MAX6675_ERROR;
-    if (raw & 0x4) return MAX6675_ERROR; /* thermocouple open */
-    float c = raw_to_celsius_or_nan(raw);
-    if (isnan(c)) return MAX6675_ERROR;
-    unsigned d = clamp_decimals(decimals);
-    if (d == 0) {
-        return (long) (roundf(c));
-    } else if (d == 1) {
-        return (long) (roundf(c * 10.0f));
-    } else {
-        return (long) (roundf(c * 100.0f));
+    if (ret != 0) {
+        MAX6675_MUTEX_GIVE();
+        return MAX6675_ERROR;
     }
+    if (raw & MAX6675_FAULT_BIT) {
+        MAX6675_MUTEX_GIVE();
+        return MAX6675_ERROR; /* thermocouple open */
+    }
+    float c = raw_to_celsius_or_nan(raw);
+    if (isnan(c)) {
+        MAX6675_MUTEX_GIVE();
+        return MAX6675_ERROR;
+    }
+    unsigned d = clamp_decimals(decimals);
+    long val;
+    if (d == 0) val = (long) (roundf(c));
+    else if (d == 1) val = (long) (roundf(c * 10.0f));
+    else val = (long) (roundf(c * 100.0f));
+    
+    MAX6675_MUTEX_GIVE();
+    return val;
 }
 
 long max6675_read_fahrenheit_int(unsigned decimals) {
+    MAX6675_MUTEX_TAKE();
     long c_int = max6675_read_celsius_int(2); /* scaled x100 */
-    if (c_int == MAX6675_ERROR) return MAX6675_ERROR;
+    if (c_int == MAX6675_ERROR) {
+        MAX6675_MUTEX_GIVE();
+        return MAX6675_ERROR;
+    }
     unsigned d = clamp_decimals(decimals);
     float c = ((float)c_int) / 100.0f;
     float f = c * 9.0f / 5.0f + 32.0f;
-    if (d == 0) return (long) roundf(f);
-    if (d == 1) return (long) roundf(f * 10.0f);
-    return (long) roundf(f * 100.0f);
+    long val;
+    if (d == 0) val = (long) roundf(f);
+    else if (d == 1) val = (long) roundf(f * 10.0f);
+    else val = (long) roundf(f * 100.0f);
+    
+    MAX6675_MUTEX_GIVE();
+    return val;
 }
 
 bool max6675_is_open(void) {
+    MAX6675_MUTEX_TAKE();
     uint16_t raw;
     int ret = read16_internal(&raw);
-    if (ret != 0) return true;
-    return (raw & 0x4) != 0;
+    if (ret != 0) {
+        MAX6675_MUTEX_GIVE();
+        return true;
+    }
+    bool is_open = (raw & MAX6675_FAULT_BIT) != 0;
+    MAX6675_MUTEX_GIVE();
+    return is_open;
 }

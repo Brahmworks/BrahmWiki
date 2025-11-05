@@ -85,27 +85,40 @@ void ssr_control_task(void *pvParameters) {
         }
 
         // --- 2. Sensor Read Logic ---
-        // Only read once per window, and only *after* the delay
-        if (!read_done_this_window) {
+        if (!read_done_this_window && (elapsed >= SENSOR_READ_DELAY_MS)) {
             
-            // Check if we are past the 20ms spike delay
-            if (elapsed >= SENSOR_READ_DELAY_MS) {
-                // We are clear of the spike. Read the temp.
+            // --- Read PT100 (for control) ---
+            float temp_pt100 = max31865_read_temperature_safe();
+            
+            if (isfinite(temp_pt100)) {
+                g_latest_pt100_temp = temp_pt100; // Share the good reading
+            } 
+            else { 
+                // --- THIS IS THE FIX ---
+                // Propagate the NAN failure to the PID task
+                g_latest_pt100_temp = NAN;
+                // --- END FIX ---
                 
-                // --- Read PT100 (for control) ---
-                float temp_pt100 = max31865_read_temperature_safe();
-                if (isfinite(temp_pt100)) {
-                    g_latest_pt100_temp = temp_pt100; // Share the good reading
-                }
+                // Now, log the specific hardware fault
+                // The library has now cached the fault for us.
+                uint8_t fault_code = max31865_last_fault();
                 
-                // --- Read K-Type (for logging) ---
-                float temp_ktype = max6675_read_celsius_float(2);
-                if (isfinite(temp_ktype)) {
-                    g_latest_ktype_temp = temp_ktype; // Share the good reading
+                if (fault_code != 0) {
+                    ESP_LOGW(TAG, "MAX31865 FAULT DETECTED: 0x%02X", fault_code);
+                    max31865_clear_faults(); // Auto-clear the fault
+                } else {
+                    ESP_LOGW(TAG, "MAX31865 read failed (NAN). Check wiring or power.");
                 }
-
-                read_done_this_window = true; // Mark as read
             }
+
+            
+            // --- Read K-Type (for logging) ---
+            float temp_ktype = max6675_read_celsius_float(2);
+            if (isfinite(temp_ktype)) {
+                g_latest_ktype_temp = temp_ktype; // Share the good reading
+            }
+
+            read_done_this_window = true; // Mark as read
         }
 
         // Run this check every 20ms
@@ -133,11 +146,18 @@ void pid_calc_task(void *pvParameters) {
         // --- We are now at the start of a new 3000ms window ---
 
         // 2. Get the latest temperature (that the SSR task read for us)
-        float temp_to_use = g_latest_pt100_temp;
+       float temp_to_use = g_latest_pt100_temp;
+        
+        // --- THIS IS THE FIX ---
+        // Check for the NAN that the SSR task just passed to us
         if (!isfinite(temp_to_use)) {
-            // Handle startup or sensor fault case
-            temp_to_use = 0.0f; 
+            temp_to_use = 0.0f; // Set to 0.0f for logging
+            
+            // This prevents integrator windup from the 55.09 value
+            pid_heater_reset(g_pid);
+            ESP_LOGW(TAG, "Sensor fault detected. Resetting PID integrator.");
         }
+        // --- END FIX ---
 
         // 3. Compute output (fast)
         int out = pid_heater_update(g_pid, temp_to_use, CONTROL_PERIOD_MS);

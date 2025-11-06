@@ -142,7 +142,8 @@ static int s_debug = 0;
 
 /* --- Added from new snippet --- */
 static float s_last_good_temp_c = NAN;
-static const float SPIKE_DELTA_THRESHOLD_C = 2.0f; // tuneable
+static const float SPIKE_DELTA_THRESHOLD_C = 10.0f; // tuneable
+static const float STEP_CHANGE_TOLERANCE_C = 2.0f;  // How close retry must be
 static const uint32_t SPIKE_RETRY_MS = 50;
 /* --- End of added variables --- */
 
@@ -976,6 +977,7 @@ int max31865_set_continuous_mode(bool enable) {
 }
 
 
+/* --- THIS IS THE FULLY FIXED 'SAFE' FUNCTION --- */
 /* read RTD and convert (existing conversion logic is used).
    This wrapper implements spike-detection and retry. Returns last-good if transient. */
 float max31865_read_temperature_safe(void) {
@@ -996,27 +998,48 @@ float max31865_read_temperature_safe(void) {
             MAX31865_MUTEX_GIVE();
             return NAN; 
         }
+        // If we are here, the retry succeeded. t is now valid.
     }
 
     /* spike detection */
     if (isfinite(s_last_good_temp_c) && fabsf(t - s_last_good_temp_c) > SPIKE_DELTA_THRESHOLD_C) {
         /* Suspicious spike. Retry once. */
-        platform_delay_ms(SPIKE_RETRY_MS);
-        float tc = max31865_read_temperature_c_float(3);
+         platform_delay_ms(SPIKE_RETRY_MS);
+        float t2 = max31865_read_temperature_c_float(3);
 
-        if (isfinite(tc) && fabsf(tc - s_last_good_temp_c) <= SPIKE_DELTA_THRESHOLD_C) {
-            /* Retry value is good and close to last good. Use it. */
-            t = tc;
-        } else {
-            /* Retry value is also bad or still a spike. Reject. */
-            /* This is where we DO return the last good value. */
-            float last_good = s_last_good_temp_c;
-            MAX31865_MUTEX_GIVE();
-            return last_good;
+        if (!isfinite(t2)) {
+             // Retry failed, hard fault.
+             MAX31865_MUTEX_GIVE();
+             return NAN;
+        }
+
+        // Compare the *retry* (t2) to the *first spike* (t).
+        // If they are very close, it means the temperature has genuinely moved
+        // to a new, stable value (e.g., you dunked it in cold water).
+        if (fabs(t - t2) < STEP_CHANGE_TOLERANCE_C) {
+            // This is a real step change. Accept the new value.
+            t = t2;
+        } 
+        else {
+            // The retry value (t2) is different from the first spike (t).
+            // This means 't' was a transient, a single bad reading.
+            
+            // Now, check if t2 is a spike or a good value
+            if (fabs(t2 - s_last_good_temp_c) > SPIKE_DELTA_THRESHOLD_C) {
+                // Both t and t2 are spikes, and they are not close to each other.
+                // This is a very noisy environment or a fault.
+                // We must return a fault, NOT the stuck value.
+                MAX31865_MUTEX_GIVE();
+                return NAN; // Indicate failure
+            } else {
+                // t was a spike, but t2 is a good value (close to last_good).
+                // This was a transient. We accept t2.
+                t = t2;
+            }
         }
     }
-
-    /* accept reading */
+    
+    // If we get here, t holds a valid, accepted reading.
     s_last_good_temp_c = t;
     MAX31865_MUTEX_GIVE();
     return t;
@@ -1053,4 +1076,4 @@ float max31865_get_last_good(void) {
  * - filter 60Hz -> typical conversion ~100 ms
  * - For safe operation use 200 ms; you can reduce to ~100 ms for 60 Hz or if you use continuous conversion.
  * ------------------------------------------------------------------------- */
-/* ------------------ End of implementation ------------------ */
+ /* ------------------ End of implementation ------------------ */

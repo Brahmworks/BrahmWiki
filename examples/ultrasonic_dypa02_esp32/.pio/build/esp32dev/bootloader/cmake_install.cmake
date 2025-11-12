@@ -34,7 +34,7 @@ endif()
 
 if(NOT CMAKE_INSTALL_LOCAL_ONLY)
   # Include the install script for the subdirectory.
-  include("C:/Users/Brahmworks/OneDrive/Documents/GitHub/Reactor4-shell/BrahmWiki/examples/ultrasonic_dypa02_esp32/.pio/build/esp32dev/bootloader/esp-idf/cmake_install.cmake")
+  include("C:/Users/Brahmworks/Desktop/brahm_ish/BrahmWiki/examples/ultrasonic_dypa02_esp32/.pio/build/esp32dev/bootloader/esp-idf/cmake_install.cmake")
 endif()
 
 if(CMAKE_INSTALL_COMPONENT)
@@ -45,5 +45,5 @@ endif()
 
 string(REPLACE ";" "\n" CMAKE_INSTALL_MANIFEST_CONTENT
        "${CMAKE_INSTALL_MANIFEST_FILES}")
-file(WRITE "C:/Users/Brahmworks/OneDrive/Documents/GitHub/Reactor4-shell/BrahmWiki/examples/ultrasonic_dypa02_esp32/.pio/build/esp32dev/bootloader/${CMAKE_INSTALL_MANIFEST}"
+file(WRITE "C:/Users/Brahmworks/Desktop/brahm_ish/BrahmWiki/examples/ultrasonic_dypa02_esp32/.pio/build/esp32dev/bootloader/${CMAKE_INSTALL_MANIFEST}"
      "${CMAKE_INSTALL_MANIFEST_CONTENT}")

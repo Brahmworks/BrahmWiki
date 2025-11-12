@@ -1,4 +1,4 @@
-# Install script for directory: C:/Users/Brahmworks/OneDrive/Documents/GitHub/Reactor4-shell/BrahmWiki/examples/ultrasonic_dypa02_esp32/src
+# Install script for directory: C:/Users/Brahmworks/Desktop/brahm_ish/BrahmWiki/examples/ultrasonic_dypa02_esp32/src
 
 # Set the install prefix
 if(NOT DEFINED CMAKE_INSTALL_PREFIX)

@@ -318,7 +318,7 @@ rule C_STATIC_LIBRARY_LINKER____idf_main
 # Rule for re-running cmake.
 
 rule RERUN_CMAKE
-  command = C:\Users\Brahmworks\.platformio\packages\tool-cmake\bin\cmake.exe -SC:\Users\Brahmworks\.platformio\packages\framework-espidf\components\bootloader\subproject -BC:\Users\Brahmworks\OneDrive\Documents\GitHub\Reactor4-shell\BrahmWiki\examples\ultrasonic_dypa02_esp32\.pio\build\esp32dev\bootloader
+  command = C:\Users\Brahmworks\.platformio\packages\tool-cmake\bin\cmake.exe -SC:\Users\Brahmworks\.platformio\packages\framework-espidf\components\bootloader\subproject -BC:\Users\Brahmworks\Desktop\brahm_ish\BrahmWiki\examples\ultrasonic_dypa02_esp32\.pio\build\esp32dev\bootloader
   description = Re-running CMake...
   generator = 1
 

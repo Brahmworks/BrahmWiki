@@ -1,65 +1,82 @@
 #include <Arduino.h>
-#include <ultrasonic_dypa02.h>
+#include <SoftwareSerial.h> 
+#include "ultrasonic_dypa02.h"
 
-/* Fixed PCB pins */
-#define RX_PIN A4  // Sensor TX -> MCU RX
-#define TX_PIN A5  // Sensor RX <- MCU TX
+// Sensor Pin Configuration (for SoftwareSerial)
+#define SENSOR_RX_PIN 10 // MCU RX (Sensor TX)
+#define SENSOR_TX_PIN 11 // MCU TX (Sensor RX)
 
-/* Detection threshold in cm */
-const float THRESHOLD_CM = 8.0f;
+// Configuration for filtering and detection
+#define SAMPLES_REQUIRED    15      // Get 15 valid samples
+#define DIST_MIN_MM         1       // Minimum valid distance
+#define DIST_MAX_MM         1000    // Maximum valid distance (1m)
+#define PER_READ_TIMEOUT_MS 200     // Timeout for one packet
+#define OVERALL_TIMEOUT_MS  5000    // Give up after 5 seconds
+#define OBJECT_THRESHOLD_MM 80      // 8.0 cm
+
+// --- Define a sensor handle ---
+dyp_sensor_t sensor_1 = DYP_SENSOR_INITIALIZER;
+
 
 void setup() {
-  Serial.begin(9600);
-  while (!Serial) { delay(10); }
+  // Start debug serial
+  Serial.begin(115200);
+  while (!Serial) { ; }
+  Serial.println("Arduino DYP-A02 Sensor Test (Robust)");
+  Serial.print("Object threshold: ");
+  Serial.print(OBJECT_THRESHOLD_MM);
+  Serial.println(" mm");
 
-  Serial.println("========================================");
-  Serial.println("  DYP-A02YYGDW Multi-Unit Test");
-  Serial.println("  Using library functions only");
-  Serial.println("  Threshold: < 8 cm = DETECTED");
-  Serial.println("========================================");
-  Serial.println();
-
-  if (dyp_uart_init(RX_PIN, TX_PIN, 9600) != 0) {
-    Serial.println("ERROR: dyp_uart_init failed!");
-    while (1) delay(1000);
+  Serial.println("Initializing sensor with SoftwareSerial...");
+  
+  // --- NEW: Check dyp_err_t return code ---
+  dyp_err_t err = dyp_a02_init(
+      &sensor_1, // <-- Pass sensor handle
+      SENSOR_RX_PIN, 
+      SENSOR_TX_PIN
+  );
+  
+  if (err != DYP_OK) {
+    // --- NEW: Print descriptive error string ---
+    Serial.print("Failed to initialize sensor library: ");
+    Serial.println(dyp_a02_strerror(err));
+    while(1); // Halt
   }
 
-  Serial.println("Sensor initialized successfully!");
-  Serial.println("Reading distance every 500 ms...");
-  Serial.println();
-  delay(1000);
+  Serial.println("Sensor initialized.");
 }
 
 void loop() {
-  float distance_mm = 0.0f;
-  float distance_cm = 0.0f;
-  float distance_m  = 0.0f;
-  float distance_ft = 0.0f;
+  // --- Pass the sensor handle to the read function ---
+  long dist_mm = dyp_a02_read_average_filtered_int(
+      &sensor_1, // <-- Pass sensor handle
+      SAMPLES_REQUIRED,
+      DIST_MIN_MM,
+      DIST_MAX_MM,
+      PER_READ_TIMEOUT_MS,
+      OVERALL_TIMEOUT_MS
+  );
 
-  int res_mm = dyp_uart_read_distance_mm_float(&distance_mm, 100);
-  int res_cm = dyp_uart_read_distance_cm_float(&distance_cm, 100);
-  int res_m  = dyp_uart_read_distance_meter_float(&distance_m, 100);
-  int res_ft = dyp_uart_read_distance_feet_float(&distance_ft, 100);
+  if (dist_mm != DYP_A02_READ_ERROR) {
+    Serial.print("Average distance: ");
+    Serial.print(dist_mm);
+    Serial.print(" mm  (");
+    Serial.print((float)dist_mm / 10.0f, 2);
+    Serial.println(" cm)");
 
-  // If any one of them succeeds, print
-  if (res_cm == 0) {
-    Serial.println("----------------------------------------");
-    Serial.print("Distance: ");
-    Serial.print(distance_mm, 1); Serial.print(" mm  |  ");
-    Serial.print(distance_cm, 2); Serial.print(" cm  |  ");
-    Serial.print(distance_m, 3);  Serial.print(" m  |  ");
-    Serial.print(distance_ft, 3); Serial.println(" ft");
+    bool detected = dyp_a02_is_object_detected(dist_mm, OBJECT_THRESHOLD_MM);
+    if (detected) {
+      Serial.println("--> Object DETECTED!");
+    } else {
+      Serial.println("--> No object detected.");
+    }
 
-    bool detected = (distance_cm > 0.0f && distance_cm <= THRESHOLD_CM);
-
-    if (detected)
-      Serial.println("🟢 Object DETECTED within 8 cm!");
-    else
-      Serial.println("⚪ No object detected (beyond 8 cm)");
-  } 
-  else {
-    Serial.println("TIMEOUT/ERROR - No valid frame");
+  } else {
+    // --- NEW: Get and print the specific error ---
+    dyp_err_t last_err = dyp_a02_get_last_error(&sensor_1);
+    Serial.print("Failed to read sensor: ");
+    Serial.println(dyp_a02_strerror(last_err));
   }
-
-  delay(500);
+  
+  delay(500); // Wait 500ms before next read
 }

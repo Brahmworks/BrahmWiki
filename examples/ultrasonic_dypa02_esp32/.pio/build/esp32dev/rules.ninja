@@ -72,7 +72,7 @@ rule C_STATIC_LIBRARY_LINKER____idf_xtensa
 #############################################
 # Rule for compiling C files.
 
-rule C_COMPILER____idf_esp_ringbuf
+rule C_COMPILER____idf_esp_driver_gpio
   depfile = $DEP_FILE
   deps = gcc
   command = C:\Users\Brahmworks\.platformio\packages\toolchain-xtensa-esp-elf\bin\xtensa-esp32-elf-gcc.exe $DEFINES $INCLUDES $FLAGS -MD -MT $out -MF $DEP_FILE -o $out   -c $in
@@ -82,26 +82,7 @@ rule C_COMPILER____idf_esp_ringbuf
 #############################################
 # Rule for linking C static library.
 
-rule C_STATIC_LIBRARY_LINKER____idf_esp_ringbuf
-  command = cmd.exe /C "$PRE_LINK && C:\Users\Brahmworks\.platformio\packages\tool-cmake\bin\cmake.exe -E remove $TARGET_FILE && C:\Users\Brahmworks\.platformio\packages\toolchain-xtensa-esp-elf\bin\xtensa-esp32-elf-ar.exe qc $TARGET_FILE $LINK_FLAGS $in && C:\Users\Brahmworks\.platformio\packages\toolchain-xtensa-esp-elf\bin\xtensa-esp32-elf-ranlib.exe $TARGET_FILE && $POST_BUILD"
-  description = Linking C static library $TARGET_FILE
-  restat = $RESTAT
-
-
-#############################################
-# Rule for compiling C files.
-
-rule C_COMPILER____idf_efuse
-  depfile = $DEP_FILE
-  deps = gcc
-  command = C:\Users\Brahmworks\.platformio\packages\toolchain-xtensa-esp-elf\bin\xtensa-esp32-elf-gcc.exe $DEFINES $INCLUDES $FLAGS -MD -MT $out -MF $DEP_FILE -o $out   -c $in
-  description = Building C object $out
-
-
-#############################################
-# Rule for linking C static library.
-
-rule C_STATIC_LIBRARY_LINKER____idf_efuse
+rule C_STATIC_LIBRARY_LINKER____idf_esp_driver_gpio
   command = cmd.exe /C "$PRE_LINK && C:\Users\Brahmworks\.platformio\packages\tool-cmake\bin\cmake.exe -E remove $TARGET_FILE && C:\Users\Brahmworks\.platformio\packages\toolchain-xtensa-esp-elf\bin\xtensa-esp32-elf-ar.exe qc $TARGET_FILE $LINK_FLAGS $in && C:\Users\Brahmworks\.platformio\packages\toolchain-xtensa-esp-elf\bin\xtensa-esp32-elf-ranlib.exe $TARGET_FILE && $POST_BUILD"
   description = Linking C static library $TARGET_FILE
   restat = $RESTAT
@@ -121,44 +102,6 @@ rule C_COMPILER____idf_esp_timer
 # Rule for linking C static library.
 
 rule C_STATIC_LIBRARY_LINKER____idf_esp_timer
-  command = cmd.exe /C "$PRE_LINK && C:\Users\Brahmworks\.platformio\packages\tool-cmake\bin\cmake.exe -E remove $TARGET_FILE && C:\Users\Brahmworks\.platformio\packages\toolchain-xtensa-esp-elf\bin\xtensa-esp32-elf-ar.exe qc $TARGET_FILE $LINK_FLAGS $in && C:\Users\Brahmworks\.platformio\packages\toolchain-xtensa-esp-elf\bin\xtensa-esp32-elf-ranlib.exe $TARGET_FILE && $POST_BUILD"
-  description = Linking C static library $TARGET_FILE
-  restat = $RESTAT
-
-
-#############################################
-# Rule for compiling C files.
-
-rule C_COMPILER____idf_esp_mm
-  depfile = $DEP_FILE
-  deps = gcc
-  command = C:\Users\Brahmworks\.platformio\packages\toolchain-xtensa-esp-elf\bin\xtensa-esp32-elf-gcc.exe $DEFINES $INCLUDES $FLAGS -MD -MT $out -MF $DEP_FILE -o $out   -c $in
-  description = Building C object $out
-
-
-#############################################
-# Rule for linking C static library.
-
-rule C_STATIC_LIBRARY_LINKER____idf_esp_mm
-  command = cmd.exe /C "$PRE_LINK && C:\Users\Brahmworks\.platformio\packages\tool-cmake\bin\cmake.exe -E remove $TARGET_FILE && C:\Users\Brahmworks\.platformio\packages\toolchain-xtensa-esp-elf\bin\xtensa-esp32-elf-ar.exe qc $TARGET_FILE $LINK_FLAGS $in && C:\Users\Brahmworks\.platformio\packages\toolchain-xtensa-esp-elf\bin\xtensa-esp32-elf-ranlib.exe $TARGET_FILE && $POST_BUILD"
-  description = Linking C static library $TARGET_FILE
-  restat = $RESTAT
-
-
-#############################################
-# Rule for compiling C files.
-
-rule C_COMPILER____idf_driver
-  depfile = $DEP_FILE
-  deps = gcc
-  command = C:\Users\Brahmworks\.platformio\packages\toolchain-xtensa-esp-elf\bin\xtensa-esp32-elf-gcc.exe $DEFINES $INCLUDES $FLAGS -MD -MT $out -MF $DEP_FILE -o $out   -c $in
-  description = Building C object $out
-
-
-#############################################
-# Rule for linking C static library.
-
-rule C_STATIC_LIBRARY_LINKER____idf_driver
   command = cmd.exe /C "$PRE_LINK && C:\Users\Brahmworks\.platformio\packages\tool-cmake\bin\cmake.exe -E remove $TARGET_FILE && C:\Users\Brahmworks\.platformio\packages\toolchain-xtensa-esp-elf\bin\xtensa-esp32-elf-ar.exe qc $TARGET_FILE $LINK_FLAGS $in && C:\Users\Brahmworks\.platformio\packages\toolchain-xtensa-esp-elf\bin\xtensa-esp32-elf-ranlib.exe $TARGET_FILE && $POST_BUILD"
   description = Linking C static library $TARGET_FILE
   restat = $RESTAT
@@ -312,25 +255,6 @@ rule CXX_STATIC_LIBRARY_LINKER__mbedtls
 #############################################
 # Rule for compiling C files.
 
-rule C_COMPILER____idf_esp_bootloader_format
-  depfile = $DEP_FILE
-  deps = gcc
-  command = C:\Users\Brahmworks\.platformio\packages\toolchain-xtensa-esp-elf\bin\xtensa-esp32-elf-gcc.exe $DEFINES $INCLUDES $FLAGS -MD -MT $out -MF $DEP_FILE -o $out   -c $in
-  description = Building C object $out
-
-
-#############################################
-# Rule for linking C static library.
-
-rule C_STATIC_LIBRARY_LINKER____idf_esp_bootloader_format
-  command = cmd.exe /C "$PRE_LINK && C:\Users\Brahmworks\.platformio\packages\tool-cmake\bin\cmake.exe -E remove $TARGET_FILE && C:\Users\Brahmworks\.platformio\packages\toolchain-xtensa-esp-elf\bin\xtensa-esp32-elf-ar.exe qc $TARGET_FILE $LINK_FLAGS $in && C:\Users\Brahmworks\.platformio\packages\toolchain-xtensa-esp-elf\bin\xtensa-esp32-elf-ranlib.exe $TARGET_FILE && $POST_BUILD"
-  description = Linking C static library $TARGET_FILE
-  restat = $RESTAT
-
-
-#############################################
-# Rule for compiling C files.
-
 rule C_COMPILER____idf_esp_app_format
   depfile = $DEP_FILE
   deps = gcc
@@ -350,7 +274,7 @@ rule C_STATIC_LIBRARY_LINKER____idf_esp_app_format
 #############################################
 # Rule for compiling C files.
 
-rule C_COMPILER____idf_bootloader_support
+rule C_COMPILER____idf_esp_bootloader_format
   depfile = $DEP_FILE
   deps = gcc
   command = C:\Users\Brahmworks\.platformio\packages\toolchain-xtensa-esp-elf\bin\xtensa-esp32-elf-gcc.exe $DEFINES $INCLUDES $FLAGS -MD -MT $out -MF $DEP_FILE -o $out   -c $in
@@ -360,26 +284,7 @@ rule C_COMPILER____idf_bootloader_support
 #############################################
 # Rule for linking C static library.
 
-rule C_STATIC_LIBRARY_LINKER____idf_bootloader_support
-  command = cmd.exe /C "$PRE_LINK && C:\Users\Brahmworks\.platformio\packages\tool-cmake\bin\cmake.exe -E remove $TARGET_FILE && C:\Users\Brahmworks\.platformio\packages\toolchain-xtensa-esp-elf\bin\xtensa-esp32-elf-ar.exe qc $TARGET_FILE $LINK_FLAGS $in && C:\Users\Brahmworks\.platformio\packages\toolchain-xtensa-esp-elf\bin\xtensa-esp32-elf-ranlib.exe $TARGET_FILE && $POST_BUILD"
-  description = Linking C static library $TARGET_FILE
-  restat = $RESTAT
-
-
-#############################################
-# Rule for compiling C files.
-
-rule C_COMPILER____idf_esp_partition
-  depfile = $DEP_FILE
-  deps = gcc
-  command = C:\Users\Brahmworks\.platformio\packages\toolchain-xtensa-esp-elf\bin\xtensa-esp32-elf-gcc.exe $DEFINES $INCLUDES $FLAGS -MD -MT $out -MF $DEP_FILE -o $out   -c $in
-  description = Building C object $out
-
-
-#############################################
-# Rule for linking C static library.
-
-rule C_STATIC_LIBRARY_LINKER____idf_esp_partition
+rule C_STATIC_LIBRARY_LINKER____idf_esp_bootloader_format
   command = cmd.exe /C "$PRE_LINK && C:\Users\Brahmworks\.platformio\packages\tool-cmake\bin\cmake.exe -E remove $TARGET_FILE && C:\Users\Brahmworks\.platformio\packages\toolchain-xtensa-esp-elf\bin\xtensa-esp32-elf-ar.exe qc $TARGET_FILE $LINK_FLAGS $in && C:\Users\Brahmworks\.platformio\packages\toolchain-xtensa-esp-elf\bin\xtensa-esp32-elf-ranlib.exe $TARGET_FILE && $POST_BUILD"
   description = Linking C static library $TARGET_FILE
   restat = $RESTAT
@@ -407,6 +312,82 @@ rule C_STATIC_LIBRARY_LINKER____idf_app_update
 #############################################
 # Rule for compiling C files.
 
+rule C_COMPILER____idf_esp_partition
+  depfile = $DEP_FILE
+  deps = gcc
+  command = C:\Users\Brahmworks\.platformio\packages\toolchain-xtensa-esp-elf\bin\xtensa-esp32-elf-gcc.exe $DEFINES $INCLUDES $FLAGS -MD -MT $out -MF $DEP_FILE -o $out   -c $in
+  description = Building C object $out
+
+
+#############################################
+# Rule for linking C static library.
+
+rule C_STATIC_LIBRARY_LINKER____idf_esp_partition
+  command = cmd.exe /C "$PRE_LINK && C:\Users\Brahmworks\.platformio\packages\tool-cmake\bin\cmake.exe -E remove $TARGET_FILE && C:\Users\Brahmworks\.platformio\packages\toolchain-xtensa-esp-elf\bin\xtensa-esp32-elf-ar.exe qc $TARGET_FILE $LINK_FLAGS $in && C:\Users\Brahmworks\.platformio\packages\toolchain-xtensa-esp-elf\bin\xtensa-esp32-elf-ranlib.exe $TARGET_FILE && $POST_BUILD"
+  description = Linking C static library $TARGET_FILE
+  restat = $RESTAT
+
+
+#############################################
+# Rule for compiling C files.
+
+rule C_COMPILER____idf_efuse
+  depfile = $DEP_FILE
+  deps = gcc
+  command = C:\Users\Brahmworks\.platformio\packages\toolchain-xtensa-esp-elf\bin\xtensa-esp32-elf-gcc.exe $DEFINES $INCLUDES $FLAGS -MD -MT $out -MF $DEP_FILE -o $out   -c $in
+  description = Building C object $out
+
+
+#############################################
+# Rule for linking C static library.
+
+rule C_STATIC_LIBRARY_LINKER____idf_efuse
+  command = cmd.exe /C "$PRE_LINK && C:\Users\Brahmworks\.platformio\packages\tool-cmake\bin\cmake.exe -E remove $TARGET_FILE && C:\Users\Brahmworks\.platformio\packages\toolchain-xtensa-esp-elf\bin\xtensa-esp32-elf-ar.exe qc $TARGET_FILE $LINK_FLAGS $in && C:\Users\Brahmworks\.platformio\packages\toolchain-xtensa-esp-elf\bin\xtensa-esp32-elf-ranlib.exe $TARGET_FILE && $POST_BUILD"
+  description = Linking C static library $TARGET_FILE
+  restat = $RESTAT
+
+
+#############################################
+# Rule for compiling C files.
+
+rule C_COMPILER____idf_bootloader_support
+  depfile = $DEP_FILE
+  deps = gcc
+  command = C:\Users\Brahmworks\.platformio\packages\toolchain-xtensa-esp-elf\bin\xtensa-esp32-elf-gcc.exe $DEFINES $INCLUDES $FLAGS -MD -MT $out -MF $DEP_FILE -o $out   -c $in
+  description = Building C object $out
+
+
+#############################################
+# Rule for linking C static library.
+
+rule C_STATIC_LIBRARY_LINKER____idf_bootloader_support
+  command = cmd.exe /C "$PRE_LINK && C:\Users\Brahmworks\.platformio\packages\tool-cmake\bin\cmake.exe -E remove $TARGET_FILE && C:\Users\Brahmworks\.platformio\packages\toolchain-xtensa-esp-elf\bin\xtensa-esp32-elf-ar.exe qc $TARGET_FILE $LINK_FLAGS $in && C:\Users\Brahmworks\.platformio\packages\toolchain-xtensa-esp-elf\bin\xtensa-esp32-elf-ranlib.exe $TARGET_FILE && $POST_BUILD"
+  description = Linking C static library $TARGET_FILE
+  restat = $RESTAT
+
+
+#############################################
+# Rule for compiling C files.
+
+rule C_COMPILER____idf_esp_mm
+  depfile = $DEP_FILE
+  deps = gcc
+  command = C:\Users\Brahmworks\.platformio\packages\toolchain-xtensa-esp-elf\bin\xtensa-esp32-elf-gcc.exe $DEFINES $INCLUDES $FLAGS -MD -MT $out -MF $DEP_FILE -o $out   -c $in
+  description = Building C object $out
+
+
+#############################################
+# Rule for linking C static library.
+
+rule C_STATIC_LIBRARY_LINKER____idf_esp_mm
+  command = cmd.exe /C "$PRE_LINK && C:\Users\Brahmworks\.platformio\packages\tool-cmake\bin\cmake.exe -E remove $TARGET_FILE && C:\Users\Brahmworks\.platformio\packages\toolchain-xtensa-esp-elf\bin\xtensa-esp32-elf-ar.exe qc $TARGET_FILE $LINK_FLAGS $in && C:\Users\Brahmworks\.platformio\packages\toolchain-xtensa-esp-elf\bin\xtensa-esp32-elf-ranlib.exe $TARGET_FILE && $POST_BUILD"
+  description = Linking C static library $TARGET_FILE
+  restat = $RESTAT
+
+
+#############################################
+# Rule for compiling C files.
+
 rule C_COMPILER____idf_spi_flash
   depfile = $DEP_FILE
   deps = gcc
@@ -418,25 +399,6 @@ rule C_COMPILER____idf_spi_flash
 # Rule for linking C static library.
 
 rule C_STATIC_LIBRARY_LINKER____idf_spi_flash
-  command = cmd.exe /C "$PRE_LINK && C:\Users\Brahmworks\.platformio\packages\tool-cmake\bin\cmake.exe -E remove $TARGET_FILE && C:\Users\Brahmworks\.platformio\packages\toolchain-xtensa-esp-elf\bin\xtensa-esp32-elf-ar.exe qc $TARGET_FILE $LINK_FLAGS $in && C:\Users\Brahmworks\.platformio\packages\toolchain-xtensa-esp-elf\bin\xtensa-esp32-elf-ranlib.exe $TARGET_FILE && $POST_BUILD"
-  description = Linking C static library $TARGET_FILE
-  restat = $RESTAT
-
-
-#############################################
-# Rule for compiling C files.
-
-rule C_COMPILER____idf_pthread
-  depfile = $DEP_FILE
-  deps = gcc
-  command = C:\Users\Brahmworks\.platformio\packages\toolchain-xtensa-esp-elf\bin\xtensa-esp32-elf-gcc.exe $DEFINES $INCLUDES $FLAGS -MD -MT $out -MF $DEP_FILE -o $out   -c $in
-  description = Building C object $out
-
-
-#############################################
-# Rule for linking C static library.
-
-rule C_STATIC_LIBRARY_LINKER____idf_pthread
   command = cmd.exe /C "$PRE_LINK && C:\Users\Brahmworks\.platformio\packages\tool-cmake\bin\cmake.exe -E remove $TARGET_FILE && C:\Users\Brahmworks\.platformio\packages\toolchain-xtensa-esp-elf\bin\xtensa-esp32-elf-ar.exe qc $TARGET_FILE $LINK_FLAGS $in && C:\Users\Brahmworks\.platformio\packages\toolchain-xtensa-esp-elf\bin\xtensa-esp32-elf-ranlib.exe $TARGET_FILE && $POST_BUILD"
   description = Linking C static library $TARGET_FILE
   restat = $RESTAT
@@ -598,6 +560,25 @@ rule C_STATIC_LIBRARY_LINKER____idf_soc
 #############################################
 # Rule for compiling C files.
 
+rule C_COMPILER____idf_esp_security
+  depfile = $DEP_FILE
+  deps = gcc
+  command = C:\Users\Brahmworks\.platformio\packages\toolchain-xtensa-esp-elf\bin\xtensa-esp32-elf-gcc.exe $DEFINES $INCLUDES $FLAGS -MD -MT $out -MF $DEP_FILE -o $out   -c $in
+  description = Building C object $out
+
+
+#############################################
+# Rule for linking C static library.
+
+rule C_STATIC_LIBRARY_LINKER____idf_esp_security
+  command = cmd.exe /C "$PRE_LINK && C:\Users\Brahmworks\.platformio\packages\tool-cmake\bin\cmake.exe -E remove $TARGET_FILE && C:\Users\Brahmworks\.platformio\packages\toolchain-xtensa-esp-elf\bin\xtensa-esp32-elf-ar.exe qc $TARGET_FILE $LINK_FLAGS $in && C:\Users\Brahmworks\.platformio\packages\toolchain-xtensa-esp-elf\bin\xtensa-esp32-elf-ranlib.exe $TARGET_FILE && $POST_BUILD"
+  description = Linking C static library $TARGET_FILE
+  restat = $RESTAT
+
+
+#############################################
+# Rule for compiling C files.
+
 rule C_COMPILER____idf_esp_hw_support
   depfile = $DEP_FILE
   deps = gcc
@@ -657,6 +638,25 @@ rule C_COMPILER____idf_newlib
 # Rule for linking C static library.
 
 rule C_STATIC_LIBRARY_LINKER____idf_newlib
+  command = cmd.exe /C "$PRE_LINK && C:\Users\Brahmworks\.platformio\packages\tool-cmake\bin\cmake.exe -E remove $TARGET_FILE && C:\Users\Brahmworks\.platformio\packages\toolchain-xtensa-esp-elf\bin\xtensa-esp32-elf-ar.exe qc $TARGET_FILE $LINK_FLAGS $in && C:\Users\Brahmworks\.platformio\packages\toolchain-xtensa-esp-elf\bin\xtensa-esp32-elf-ranlib.exe $TARGET_FILE && $POST_BUILD"
+  description = Linking C static library $TARGET_FILE
+  restat = $RESTAT
+
+
+#############################################
+# Rule for compiling C files.
+
+rule C_COMPILER____idf_pthread
+  depfile = $DEP_FILE
+  deps = gcc
+  command = C:\Users\Brahmworks\.platformio\packages\toolchain-xtensa-esp-elf\bin\xtensa-esp32-elf-gcc.exe $DEFINES $INCLUDES $FLAGS -MD -MT $out -MF $DEP_FILE -o $out   -c $in
+  description = Building C object $out
+
+
+#############################################
+# Rule for linking C static library.
+
+rule C_STATIC_LIBRARY_LINKER____idf_pthread
   command = cmd.exe /C "$PRE_LINK && C:\Users\Brahmworks\.platformio\packages\tool-cmake\bin\cmake.exe -E remove $TARGET_FILE && C:\Users\Brahmworks\.platformio\packages\toolchain-xtensa-esp-elf\bin\xtensa-esp32-elf-ar.exe qc $TARGET_FILE $LINK_FLAGS $in && C:\Users\Brahmworks\.platformio\packages\toolchain-xtensa-esp-elf\bin\xtensa-esp32-elf-ranlib.exe $TARGET_FILE && $POST_BUILD"
   description = Linking C static library $TARGET_FILE
   restat = $RESTAT
@@ -723,6 +723,63 @@ rule C_STATIC_LIBRARY_LINKER____idf___pio_env
 #############################################
 # Rule for compiling C files.
 
+rule C_COMPILER____idf_esp_driver_gptimer
+  depfile = $DEP_FILE
+  deps = gcc
+  command = C:\Users\Brahmworks\.platformio\packages\toolchain-xtensa-esp-elf\bin\xtensa-esp32-elf-gcc.exe $DEFINES $INCLUDES $FLAGS -MD -MT $out -MF $DEP_FILE -o $out   -c $in
+  description = Building C object $out
+
+
+#############################################
+# Rule for linking C static library.
+
+rule C_STATIC_LIBRARY_LINKER____idf_esp_driver_gptimer
+  command = cmd.exe /C "$PRE_LINK && C:\Users\Brahmworks\.platformio\packages\tool-cmake\bin\cmake.exe -E remove $TARGET_FILE && C:\Users\Brahmworks\.platformio\packages\toolchain-xtensa-esp-elf\bin\xtensa-esp32-elf-ar.exe qc $TARGET_FILE $LINK_FLAGS $in && C:\Users\Brahmworks\.platformio\packages\toolchain-xtensa-esp-elf\bin\xtensa-esp32-elf-ranlib.exe $TARGET_FILE && $POST_BUILD"
+  description = Linking C static library $TARGET_FILE
+  restat = $RESTAT
+
+
+#############################################
+# Rule for compiling C files.
+
+rule C_COMPILER____idf_esp_ringbuf
+  depfile = $DEP_FILE
+  deps = gcc
+  command = C:\Users\Brahmworks\.platformio\packages\toolchain-xtensa-esp-elf\bin\xtensa-esp32-elf-gcc.exe $DEFINES $INCLUDES $FLAGS -MD -MT $out -MF $DEP_FILE -o $out   -c $in
+  description = Building C object $out
+
+
+#############################################
+# Rule for linking C static library.
+
+rule C_STATIC_LIBRARY_LINKER____idf_esp_ringbuf
+  command = cmd.exe /C "$PRE_LINK && C:\Users\Brahmworks\.platformio\packages\tool-cmake\bin\cmake.exe -E remove $TARGET_FILE && C:\Users\Brahmworks\.platformio\packages\toolchain-xtensa-esp-elf\bin\xtensa-esp32-elf-ar.exe qc $TARGET_FILE $LINK_FLAGS $in && C:\Users\Brahmworks\.platformio\packages\toolchain-xtensa-esp-elf\bin\xtensa-esp32-elf-ranlib.exe $TARGET_FILE && $POST_BUILD"
+  description = Linking C static library $TARGET_FILE
+  restat = $RESTAT
+
+
+#############################################
+# Rule for compiling C files.
+
+rule C_COMPILER____idf_esp_driver_uart
+  depfile = $DEP_FILE
+  deps = gcc
+  command = C:\Users\Brahmworks\.platformio\packages\toolchain-xtensa-esp-elf\bin\xtensa-esp32-elf-gcc.exe $DEFINES $INCLUDES $FLAGS -MD -MT $out -MF $DEP_FILE -o $out   -c $in
+  description = Building C object $out
+
+
+#############################################
+# Rule for linking C static library.
+
+rule C_STATIC_LIBRARY_LINKER____idf_esp_driver_uart
+  command = cmd.exe /C "$PRE_LINK && C:\Users\Brahmworks\.platformio\packages\tool-cmake\bin\cmake.exe -E remove $TARGET_FILE && C:\Users\Brahmworks\.platformio\packages\toolchain-xtensa-esp-elf\bin\xtensa-esp32-elf-ar.exe qc $TARGET_FILE $LINK_FLAGS $in && C:\Users\Brahmworks\.platformio\packages\toolchain-xtensa-esp-elf\bin\xtensa-esp32-elf-ranlib.exe $TARGET_FILE && $POST_BUILD"
+  description = Linking C static library $TARGET_FILE
+  restat = $RESTAT
+
+
+#############################################
+# Rule for compiling C files.
+
 rule C_COMPILER____idf_app_trace
   depfile = $DEP_FILE
   deps = gcc
@@ -759,6 +816,16 @@ rule C_STATIC_LIBRARY_LINKER____idf_esp_event
 
 
 #############################################
+# Rule for compiling C files.
+
+rule C_COMPILER____idf_nvs_flash
+  depfile = $DEP_FILE
+  deps = gcc
+  command = C:\Users\Brahmworks\.platformio\packages\toolchain-xtensa-esp-elf\bin\xtensa-esp32-elf-gcc.exe $DEFINES $INCLUDES $FLAGS -MD -MT $out -MF $DEP_FILE -o $out   -c $in
+  description = Building C object $out
+
+
+#############################################
 # Rule for compiling CXX files.
 
 rule CXX_COMPILER____idf_nvs_flash
@@ -780,6 +847,272 @@ rule C_STATIC_LIBRARY_LINKER____idf_nvs_flash
 #############################################
 # Rule for compiling C files.
 
+rule C_COMPILER____idf_esp_driver_pcnt
+  depfile = $DEP_FILE
+  deps = gcc
+  command = C:\Users\Brahmworks\.platformio\packages\toolchain-xtensa-esp-elf\bin\xtensa-esp32-elf-gcc.exe $DEFINES $INCLUDES $FLAGS -MD -MT $out -MF $DEP_FILE -o $out   -c $in
+  description = Building C object $out
+
+
+#############################################
+# Rule for linking C static library.
+
+rule C_STATIC_LIBRARY_LINKER____idf_esp_driver_pcnt
+  command = cmd.exe /C "$PRE_LINK && C:\Users\Brahmworks\.platformio\packages\tool-cmake\bin\cmake.exe -E remove $TARGET_FILE && C:\Users\Brahmworks\.platformio\packages\toolchain-xtensa-esp-elf\bin\xtensa-esp32-elf-ar.exe qc $TARGET_FILE $LINK_FLAGS $in && C:\Users\Brahmworks\.platformio\packages\toolchain-xtensa-esp-elf\bin\xtensa-esp32-elf-ranlib.exe $TARGET_FILE && $POST_BUILD"
+  description = Linking C static library $TARGET_FILE
+  restat = $RESTAT
+
+
+#############################################
+# Rule for compiling C files.
+
+rule C_COMPILER____idf_esp_driver_spi
+  depfile = $DEP_FILE
+  deps = gcc
+  command = C:\Users\Brahmworks\.platformio\packages\toolchain-xtensa-esp-elf\bin\xtensa-esp32-elf-gcc.exe $DEFINES $INCLUDES $FLAGS -MD -MT $out -MF $DEP_FILE -o $out   -c $in
+  description = Building C object $out
+
+
+#############################################
+# Rule for linking C static library.
+
+rule C_STATIC_LIBRARY_LINKER____idf_esp_driver_spi
+  command = cmd.exe /C "$PRE_LINK && C:\Users\Brahmworks\.platformio\packages\tool-cmake\bin\cmake.exe -E remove $TARGET_FILE && C:\Users\Brahmworks\.platformio\packages\toolchain-xtensa-esp-elf\bin\xtensa-esp32-elf-ar.exe qc $TARGET_FILE $LINK_FLAGS $in && C:\Users\Brahmworks\.platformio\packages\toolchain-xtensa-esp-elf\bin\xtensa-esp32-elf-ranlib.exe $TARGET_FILE && $POST_BUILD"
+  description = Linking C static library $TARGET_FILE
+  restat = $RESTAT
+
+
+#############################################
+# Rule for compiling C files.
+
+rule C_COMPILER____idf_esp_driver_mcpwm
+  depfile = $DEP_FILE
+  deps = gcc
+  command = C:\Users\Brahmworks\.platformio\packages\toolchain-xtensa-esp-elf\bin\xtensa-esp32-elf-gcc.exe $DEFINES $INCLUDES $FLAGS -MD -MT $out -MF $DEP_FILE -o $out   -c $in
+  description = Building C object $out
+
+
+#############################################
+# Rule for linking C static library.
+
+rule C_STATIC_LIBRARY_LINKER____idf_esp_driver_mcpwm
+  command = cmd.exe /C "$PRE_LINK && C:\Users\Brahmworks\.platformio\packages\tool-cmake\bin\cmake.exe -E remove $TARGET_FILE && C:\Users\Brahmworks\.platformio\packages\toolchain-xtensa-esp-elf\bin\xtensa-esp32-elf-ar.exe qc $TARGET_FILE $LINK_FLAGS $in && C:\Users\Brahmworks\.platformio\packages\toolchain-xtensa-esp-elf\bin\xtensa-esp32-elf-ranlib.exe $TARGET_FILE && $POST_BUILD"
+  description = Linking C static library $TARGET_FILE
+  restat = $RESTAT
+
+
+#############################################
+# Rule for compiling C files.
+
+rule C_COMPILER____idf_esp_driver_i2s
+  depfile = $DEP_FILE
+  deps = gcc
+  command = C:\Users\Brahmworks\.platformio\packages\toolchain-xtensa-esp-elf\bin\xtensa-esp32-elf-gcc.exe $DEFINES $INCLUDES $FLAGS -MD -MT $out -MF $DEP_FILE -o $out   -c $in
+  description = Building C object $out
+
+
+#############################################
+# Rule for linking C static library.
+
+rule C_STATIC_LIBRARY_LINKER____idf_esp_driver_i2s
+  command = cmd.exe /C "$PRE_LINK && C:\Users\Brahmworks\.platformio\packages\tool-cmake\bin\cmake.exe -E remove $TARGET_FILE && C:\Users\Brahmworks\.platformio\packages\toolchain-xtensa-esp-elf\bin\xtensa-esp32-elf-ar.exe qc $TARGET_FILE $LINK_FLAGS $in && C:\Users\Brahmworks\.platformio\packages\toolchain-xtensa-esp-elf\bin\xtensa-esp32-elf-ranlib.exe $TARGET_FILE && $POST_BUILD"
+  description = Linking C static library $TARGET_FILE
+  restat = $RESTAT
+
+
+#############################################
+# Rule for compiling C files.
+
+rule C_COMPILER____idf_sdmmc
+  depfile = $DEP_FILE
+  deps = gcc
+  command = C:\Users\Brahmworks\.platformio\packages\toolchain-xtensa-esp-elf\bin\xtensa-esp32-elf-gcc.exe $DEFINES $INCLUDES $FLAGS -MD -MT $out -MF $DEP_FILE -o $out   -c $in
+  description = Building C object $out
+
+
+#############################################
+# Rule for linking C static library.
+
+rule C_STATIC_LIBRARY_LINKER____idf_sdmmc
+  command = cmd.exe /C "$PRE_LINK && C:\Users\Brahmworks\.platformio\packages\tool-cmake\bin\cmake.exe -E remove $TARGET_FILE && C:\Users\Brahmworks\.platformio\packages\toolchain-xtensa-esp-elf\bin\xtensa-esp32-elf-ar.exe qc $TARGET_FILE $LINK_FLAGS $in && C:\Users\Brahmworks\.platformio\packages\toolchain-xtensa-esp-elf\bin\xtensa-esp32-elf-ranlib.exe $TARGET_FILE && $POST_BUILD"
+  description = Linking C static library $TARGET_FILE
+  restat = $RESTAT
+
+
+#############################################
+# Rule for compiling C files.
+
+rule C_COMPILER____idf_esp_driver_sdmmc
+  depfile = $DEP_FILE
+  deps = gcc
+  command = C:\Users\Brahmworks\.platformio\packages\toolchain-xtensa-esp-elf\bin\xtensa-esp32-elf-gcc.exe $DEFINES $INCLUDES $FLAGS -MD -MT $out -MF $DEP_FILE -o $out   -c $in
+  description = Building C object $out
+
+
+#############################################
+# Rule for linking C static library.
+
+rule C_STATIC_LIBRARY_LINKER____idf_esp_driver_sdmmc
+  command = cmd.exe /C "$PRE_LINK && C:\Users\Brahmworks\.platformio\packages\tool-cmake\bin\cmake.exe -E remove $TARGET_FILE && C:\Users\Brahmworks\.platformio\packages\toolchain-xtensa-esp-elf\bin\xtensa-esp32-elf-ar.exe qc $TARGET_FILE $LINK_FLAGS $in && C:\Users\Brahmworks\.platformio\packages\toolchain-xtensa-esp-elf\bin\xtensa-esp32-elf-ranlib.exe $TARGET_FILE && $POST_BUILD"
+  description = Linking C static library $TARGET_FILE
+  restat = $RESTAT
+
+
+#############################################
+# Rule for compiling C files.
+
+rule C_COMPILER____idf_esp_driver_sdspi
+  depfile = $DEP_FILE
+  deps = gcc
+  command = C:\Users\Brahmworks\.platformio\packages\toolchain-xtensa-esp-elf\bin\xtensa-esp32-elf-gcc.exe $DEFINES $INCLUDES $FLAGS -MD -MT $out -MF $DEP_FILE -o $out   -c $in
+  description = Building C object $out
+
+
+#############################################
+# Rule for linking C static library.
+
+rule C_STATIC_LIBRARY_LINKER____idf_esp_driver_sdspi
+  command = cmd.exe /C "$PRE_LINK && C:\Users\Brahmworks\.platformio\packages\tool-cmake\bin\cmake.exe -E remove $TARGET_FILE && C:\Users\Brahmworks\.platformio\packages\toolchain-xtensa-esp-elf\bin\xtensa-esp32-elf-ar.exe qc $TARGET_FILE $LINK_FLAGS $in && C:\Users\Brahmworks\.platformio\packages\toolchain-xtensa-esp-elf\bin\xtensa-esp32-elf-ranlib.exe $TARGET_FILE && $POST_BUILD"
+  description = Linking C static library $TARGET_FILE
+  restat = $RESTAT
+
+
+#############################################
+# Rule for compiling C files.
+
+rule C_COMPILER____idf_esp_driver_sdio
+  depfile = $DEP_FILE
+  deps = gcc
+  command = C:\Users\Brahmworks\.platformio\packages\toolchain-xtensa-esp-elf\bin\xtensa-esp32-elf-gcc.exe $DEFINES $INCLUDES $FLAGS -MD -MT $out -MF $DEP_FILE -o $out   -c $in
+  description = Building C object $out
+
+
+#############################################
+# Rule for linking C static library.
+
+rule C_STATIC_LIBRARY_LINKER____idf_esp_driver_sdio
+  command = cmd.exe /C "$PRE_LINK && C:\Users\Brahmworks\.platformio\packages\tool-cmake\bin\cmake.exe -E remove $TARGET_FILE && C:\Users\Brahmworks\.platformio\packages\toolchain-xtensa-esp-elf\bin\xtensa-esp32-elf-ar.exe qc $TARGET_FILE $LINK_FLAGS $in && C:\Users\Brahmworks\.platformio\packages\toolchain-xtensa-esp-elf\bin\xtensa-esp32-elf-ranlib.exe $TARGET_FILE && $POST_BUILD"
+  description = Linking C static library $TARGET_FILE
+  restat = $RESTAT
+
+
+#############################################
+# Rule for compiling C files.
+
+rule C_COMPILER____idf_esp_driver_dac
+  depfile = $DEP_FILE
+  deps = gcc
+  command = C:\Users\Brahmworks\.platformio\packages\toolchain-xtensa-esp-elf\bin\xtensa-esp32-elf-gcc.exe $DEFINES $INCLUDES $FLAGS -MD -MT $out -MF $DEP_FILE -o $out   -c $in
+  description = Building C object $out
+
+
+#############################################
+# Rule for linking C static library.
+
+rule C_STATIC_LIBRARY_LINKER____idf_esp_driver_dac
+  command = cmd.exe /C "$PRE_LINK && C:\Users\Brahmworks\.platformio\packages\tool-cmake\bin\cmake.exe -E remove $TARGET_FILE && C:\Users\Brahmworks\.platformio\packages\toolchain-xtensa-esp-elf\bin\xtensa-esp32-elf-ar.exe qc $TARGET_FILE $LINK_FLAGS $in && C:\Users\Brahmworks\.platformio\packages\toolchain-xtensa-esp-elf\bin\xtensa-esp32-elf-ranlib.exe $TARGET_FILE && $POST_BUILD"
+  description = Linking C static library $TARGET_FILE
+  restat = $RESTAT
+
+
+#############################################
+# Rule for compiling C files.
+
+rule C_COMPILER____idf_esp_driver_rmt
+  depfile = $DEP_FILE
+  deps = gcc
+  command = C:\Users\Brahmworks\.platformio\packages\toolchain-xtensa-esp-elf\bin\xtensa-esp32-elf-gcc.exe $DEFINES $INCLUDES $FLAGS -MD -MT $out -MF $DEP_FILE -o $out   -c $in
+  description = Building C object $out
+
+
+#############################################
+# Rule for linking C static library.
+
+rule C_STATIC_LIBRARY_LINKER____idf_esp_driver_rmt
+  command = cmd.exe /C "$PRE_LINK && C:\Users\Brahmworks\.platformio\packages\tool-cmake\bin\cmake.exe -E remove $TARGET_FILE && C:\Users\Brahmworks\.platformio\packages\toolchain-xtensa-esp-elf\bin\xtensa-esp32-elf-ar.exe qc $TARGET_FILE $LINK_FLAGS $in && C:\Users\Brahmworks\.platformio\packages\toolchain-xtensa-esp-elf\bin\xtensa-esp32-elf-ranlib.exe $TARGET_FILE && $POST_BUILD"
+  description = Linking C static library $TARGET_FILE
+  restat = $RESTAT
+
+
+#############################################
+# Rule for compiling C files.
+
+rule C_COMPILER____idf_esp_driver_sdm
+  depfile = $DEP_FILE
+  deps = gcc
+  command = C:\Users\Brahmworks\.platformio\packages\toolchain-xtensa-esp-elf\bin\xtensa-esp32-elf-gcc.exe $DEFINES $INCLUDES $FLAGS -MD -MT $out -MF $DEP_FILE -o $out   -c $in
+  description = Building C object $out
+
+
+#############################################
+# Rule for linking C static library.
+
+rule C_STATIC_LIBRARY_LINKER____idf_esp_driver_sdm
+  command = cmd.exe /C "$PRE_LINK && C:\Users\Brahmworks\.platformio\packages\tool-cmake\bin\cmake.exe -E remove $TARGET_FILE && C:\Users\Brahmworks\.platformio\packages\toolchain-xtensa-esp-elf\bin\xtensa-esp32-elf-ar.exe qc $TARGET_FILE $LINK_FLAGS $in && C:\Users\Brahmworks\.platformio\packages\toolchain-xtensa-esp-elf\bin\xtensa-esp32-elf-ranlib.exe $TARGET_FILE && $POST_BUILD"
+  description = Linking C static library $TARGET_FILE
+  restat = $RESTAT
+
+
+#############################################
+# Rule for compiling C files.
+
+rule C_COMPILER____idf_esp_driver_i2c
+  depfile = $DEP_FILE
+  deps = gcc
+  command = C:\Users\Brahmworks\.platformio\packages\toolchain-xtensa-esp-elf\bin\xtensa-esp32-elf-gcc.exe $DEFINES $INCLUDES $FLAGS -MD -MT $out -MF $DEP_FILE -o $out   -c $in
+  description = Building C object $out
+
+
+#############################################
+# Rule for linking C static library.
+
+rule C_STATIC_LIBRARY_LINKER____idf_esp_driver_i2c
+  command = cmd.exe /C "$PRE_LINK && C:\Users\Brahmworks\.platformio\packages\tool-cmake\bin\cmake.exe -E remove $TARGET_FILE && C:\Users\Brahmworks\.platformio\packages\toolchain-xtensa-esp-elf\bin\xtensa-esp32-elf-ar.exe qc $TARGET_FILE $LINK_FLAGS $in && C:\Users\Brahmworks\.platformio\packages\toolchain-xtensa-esp-elf\bin\xtensa-esp32-elf-ranlib.exe $TARGET_FILE && $POST_BUILD"
+  description = Linking C static library $TARGET_FILE
+  restat = $RESTAT
+
+
+#############################################
+# Rule for compiling C files.
+
+rule C_COMPILER____idf_esp_driver_ledc
+  depfile = $DEP_FILE
+  deps = gcc
+  command = C:\Users\Brahmworks\.platformio\packages\toolchain-xtensa-esp-elf\bin\xtensa-esp32-elf-gcc.exe $DEFINES $INCLUDES $FLAGS -MD -MT $out -MF $DEP_FILE -o $out   -c $in
+  description = Building C object $out
+
+
+#############################################
+# Rule for linking C static library.
+
+rule C_STATIC_LIBRARY_LINKER____idf_esp_driver_ledc
+  command = cmd.exe /C "$PRE_LINK && C:\Users\Brahmworks\.platformio\packages\tool-cmake\bin\cmake.exe -E remove $TARGET_FILE && C:\Users\Brahmworks\.platformio\packages\toolchain-xtensa-esp-elf\bin\xtensa-esp32-elf-ar.exe qc $TARGET_FILE $LINK_FLAGS $in && C:\Users\Brahmworks\.platformio\packages\toolchain-xtensa-esp-elf\bin\xtensa-esp32-elf-ranlib.exe $TARGET_FILE && $POST_BUILD"
+  description = Linking C static library $TARGET_FILE
+  restat = $RESTAT
+
+
+#############################################
+# Rule for compiling C files.
+
+rule C_COMPILER____idf_driver
+  depfile = $DEP_FILE
+  deps = gcc
+  command = C:\Users\Brahmworks\.platformio\packages\toolchain-xtensa-esp-elf\bin\xtensa-esp32-elf-gcc.exe $DEFINES $INCLUDES $FLAGS -MD -MT $out -MF $DEP_FILE -o $out   -c $in
+  description = Building C object $out
+
+
+#############################################
+# Rule for linking C static library.
+
+rule C_STATIC_LIBRARY_LINKER____idf_driver
+  command = cmd.exe /C "$PRE_LINK && C:\Users\Brahmworks\.platformio\packages\tool-cmake\bin\cmake.exe -E remove $TARGET_FILE && C:\Users\Brahmworks\.platformio\packages\toolchain-xtensa-esp-elf\bin\xtensa-esp32-elf-ar.exe qc $TARGET_FILE $LINK_FLAGS $in && C:\Users\Brahmworks\.platformio\packages\toolchain-xtensa-esp-elf\bin\xtensa-esp32-elf-ranlib.exe $TARGET_FILE && $POST_BUILD"
+  description = Linking C static library $TARGET_FILE
+  restat = $RESTAT
+
+
+#############################################
+# Rule for compiling C files.
+
 rule C_COMPILER____idf_esp_phy
   depfile = $DEP_FILE
   deps = gcc
@@ -791,6 +1124,25 @@ rule C_COMPILER____idf_esp_phy
 # Rule for linking C static library.
 
 rule C_STATIC_LIBRARY_LINKER____idf_esp_phy
+  command = cmd.exe /C "$PRE_LINK && C:\Users\Brahmworks\.platformio\packages\tool-cmake\bin\cmake.exe -E remove $TARGET_FILE && C:\Users\Brahmworks\.platformio\packages\toolchain-xtensa-esp-elf\bin\xtensa-esp32-elf-ar.exe qc $TARGET_FILE $LINK_FLAGS $in && C:\Users\Brahmworks\.platformio\packages\toolchain-xtensa-esp-elf\bin\xtensa-esp32-elf-ranlib.exe $TARGET_FILE && $POST_BUILD"
+  description = Linking C static library $TARGET_FILE
+  restat = $RESTAT
+
+
+#############################################
+# Rule for compiling C files.
+
+rule C_COMPILER____idf_esp_vfs_console
+  depfile = $DEP_FILE
+  deps = gcc
+  command = C:\Users\Brahmworks\.platformio\packages\toolchain-xtensa-esp-elf\bin\xtensa-esp32-elf-gcc.exe $DEFINES $INCLUDES $FLAGS -MD -MT $out -MF $DEP_FILE -o $out   -c $in
+  description = Building C object $out
+
+
+#############################################
+# Rule for linking C static library.
+
+rule C_STATIC_LIBRARY_LINKER____idf_esp_vfs_console
   command = cmd.exe /C "$PRE_LINK && C:\Users\Brahmworks\.platformio\packages\tool-cmake\bin\cmake.exe -E remove $TARGET_FILE && C:\Users\Brahmworks\.platformio\packages\toolchain-xtensa-esp-elf\bin\xtensa-esp32-elf-ar.exe qc $TARGET_FILE $LINK_FLAGS $in && C:\Users\Brahmworks\.platformio\packages\toolchain-xtensa-esp-elf\bin\xtensa-esp32-elf-ranlib.exe $TARGET_FILE && $POST_BUILD"
   description = Linking C static library $TARGET_FILE
   restat = $RESTAT
@@ -1029,6 +1381,25 @@ rule C_STATIC_LIBRARY_LINKER____idf_esp_adc
 #############################################
 # Rule for compiling C files.
 
+rule C_COMPILER____idf_esp_driver_cam
+  depfile = $DEP_FILE
+  deps = gcc
+  command = C:\Users\Brahmworks\.platformio\packages\toolchain-xtensa-esp-elf\bin\xtensa-esp32-elf-gcc.exe $DEFINES $INCLUDES $FLAGS -MD -MT $out -MF $DEP_FILE -o $out   -c $in
+  description = Building C object $out
+
+
+#############################################
+# Rule for linking C static library.
+
+rule C_STATIC_LIBRARY_LINKER____idf_esp_driver_cam
+  command = cmd.exe /C "$PRE_LINK && C:\Users\Brahmworks\.platformio\packages\tool-cmake\bin\cmake.exe -E remove $TARGET_FILE && C:\Users\Brahmworks\.platformio\packages\toolchain-xtensa-esp-elf\bin\xtensa-esp32-elf-ar.exe qc $TARGET_FILE $LINK_FLAGS $in && C:\Users\Brahmworks\.platformio\packages\toolchain-xtensa-esp-elf\bin\xtensa-esp32-elf-ranlib.exe $TARGET_FILE && $POST_BUILD"
+  description = Linking C static library $TARGET_FILE
+  restat = $RESTAT
+
+
+#############################################
+# Rule for compiling C files.
+
 rule C_COMPILER____idf_esp_eth
   depfile = $DEP_FILE
   deps = gcc
@@ -1172,6 +1543,25 @@ rule C_STATIC_LIBRARY_LINKER____idf_esp_https_ota
 #############################################
 # Rule for compiling C files.
 
+rule C_COMPILER____idf_esp_https_server
+  depfile = $DEP_FILE
+  deps = gcc
+  command = C:\Users\Brahmworks\.platformio\packages\toolchain-xtensa-esp-elf\bin\xtensa-esp32-elf-gcc.exe $DEFINES $INCLUDES $FLAGS -MD -MT $out -MF $DEP_FILE -o $out   -c $in
+  description = Building C object $out
+
+
+#############################################
+# Rule for linking C static library.
+
+rule C_STATIC_LIBRARY_LINKER____idf_esp_https_server
+  command = cmd.exe /C "$PRE_LINK && C:\Users\Brahmworks\.platformio\packages\tool-cmake\bin\cmake.exe -E remove $TARGET_FILE && C:\Users\Brahmworks\.platformio\packages\toolchain-xtensa-esp-elf\bin\xtensa-esp32-elf-ar.exe qc $TARGET_FILE $LINK_FLAGS $in && C:\Users\Brahmworks\.platformio\packages\toolchain-xtensa-esp-elf\bin\xtensa-esp32-elf-ranlib.exe $TARGET_FILE && $POST_BUILD"
+  description = Linking C static library $TARGET_FILE
+  restat = $RESTAT
+
+
+#############################################
+# Rule for compiling C files.
+
 rule C_COMPILER____idf_esp_lcd
   depfile = $DEP_FILE
   deps = gcc
@@ -1286,25 +1676,6 @@ rule C_STATIC_LIBRARY_LINKER____idf_wear_levelling
 #############################################
 # Rule for compiling C files.
 
-rule C_COMPILER____idf_sdmmc
-  depfile = $DEP_FILE
-  deps = gcc
-  command = C:\Users\Brahmworks\.platformio\packages\toolchain-xtensa-esp-elf\bin\xtensa-esp32-elf-gcc.exe $DEFINES $INCLUDES $FLAGS -MD -MT $out -MF $DEP_FILE -o $out   -c $in
-  description = Building C object $out
-
-
-#############################################
-# Rule for linking C static library.
-
-rule C_STATIC_LIBRARY_LINKER____idf_sdmmc
-  command = cmd.exe /C "$PRE_LINK && C:\Users\Brahmworks\.platformio\packages\tool-cmake\bin\cmake.exe -E remove $TARGET_FILE && C:\Users\Brahmworks\.platformio\packages\toolchain-xtensa-esp-elf\bin\xtensa-esp32-elf-ar.exe qc $TARGET_FILE $LINK_FLAGS $in && C:\Users\Brahmworks\.platformio\packages\toolchain-xtensa-esp-elf\bin\xtensa-esp32-elf-ranlib.exe $TARGET_FILE && $POST_BUILD"
-  description = Linking C static library $TARGET_FILE
-  restat = $RESTAT
-
-
-#############################################
-# Rule for compiling C files.
-
 rule C_COMPILER____idf_fatfs
   depfile = $DEP_FILE
   deps = gcc
@@ -1400,6 +1771,25 @@ rule C_STATIC_LIBRARY_LINKER____idf_perfmon
 #############################################
 # Rule for compiling C files.
 
+rule C_COMPILER____idf_rt
+  depfile = $DEP_FILE
+  deps = gcc
+  command = C:\Users\Brahmworks\.platformio\packages\toolchain-xtensa-esp-elf\bin\xtensa-esp32-elf-gcc.exe $DEFINES $INCLUDES $FLAGS -MD -MT $out -MF $DEP_FILE -o $out   -c $in
+  description = Building C object $out
+
+
+#############################################
+# Rule for linking C static library.
+
+rule C_STATIC_LIBRARY_LINKER____idf_rt
+  command = cmd.exe /C "$PRE_LINK && C:\Users\Brahmworks\.platformio\packages\tool-cmake\bin\cmake.exe -E remove $TARGET_FILE && C:\Users\Brahmworks\.platformio\packages\toolchain-xtensa-esp-elf\bin\xtensa-esp32-elf-ar.exe qc $TARGET_FILE $LINK_FLAGS $in && C:\Users\Brahmworks\.platformio\packages\toolchain-xtensa-esp-elf\bin\xtensa-esp32-elf-ranlib.exe $TARGET_FILE && $POST_BUILD"
+  description = Linking C static library $TARGET_FILE
+  restat = $RESTAT
+
+
+#############################################
+# Rule for compiling C files.
+
 rule C_COMPILER____idf_spiffs
   depfile = $DEP_FILE
   deps = gcc
@@ -1436,13 +1826,13 @@ rule C_STATIC_LIBRARY_LINKER____idf_wifi_provisioning
 
 
 #############################################
-# Rule for compiling CXX files.
+# Rule for compiling C files.
 
-rule CXX_COMPILER____idf_src
+rule C_COMPILER____idf_src
   depfile = $DEP_FILE
   deps = gcc
-  command = C:\Users\Brahmworks\.platformio\packages\toolchain-xtensa-esp-elf\bin\xtensa-esp32-elf-g++.exe  $DEFINES $INCLUDES $FLAGS -MD -MT $out -MF $DEP_FILE -o $out -c $in
-  description = Building CXX object $out
+  command = C:\Users\Brahmworks\.platformio\packages\toolchain-xtensa-esp-elf\bin\xtensa-esp32-elf-gcc.exe $DEFINES $INCLUDES $FLAGS -MD -MT $out -MF $DEP_FILE -o $out   -c $in
+  description = Building C object $out
 
 
 #############################################
@@ -1458,7 +1848,7 @@ rule C_STATIC_LIBRARY_LINKER____idf_src
 # Rule for re-running cmake.
 
 rule RERUN_CMAKE
-  command = C:\Users\Brahmworks\.platformio\packages\tool-cmake\bin\cmake.exe -SC:\Users\Brahmworks\OneDrive\Documents\GitHub\Reactor4-shell\BrahmWiki\examples\ultrasonic_dypa02_esp32 -BC:\Users\Brahmworks\OneDrive\Documents\GitHub\Reactor4-shell\BrahmWiki\examples\ultrasonic_dypa02_esp32\.pio\build\esp32dev
+  command = C:\Users\Brahmworks\.platformio\packages\tool-cmake\bin\cmake.exe -SC:\Users\Brahmworks\Desktop\brahm_ish\BrahmWiki\examples\ultrasonic_dypa02_esp32 -BC:\Users\Brahmworks\Desktop\brahm_ish\BrahmWiki\examples\ultrasonic_dypa02_esp32\.pio\build\esp32dev
   description = Re-running CMake...
   generator = 1
 

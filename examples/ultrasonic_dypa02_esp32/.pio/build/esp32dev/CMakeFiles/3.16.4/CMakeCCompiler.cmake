@@ -1,7 +1,7 @@
 set(CMAKE_C_COMPILER "C:/Users/Brahmworks/.platformio/packages/toolchain-xtensa-esp-elf/bin/xtensa-esp32-elf-gcc.exe")
 set(CMAKE_C_COMPILER_ARG1 "")
 set(CMAKE_C_COMPILER_ID "GNU")
-set(CMAKE_C_COMPILER_VERSION "13.2.0")
+set(CMAKE_C_COMPILER_VERSION "14.2.0")
 set(CMAKE_C_COMPILER_VERSION_INTERNAL "")
 set(CMAKE_C_COMPILER_WRAPPER "")
 set(CMAKE_C_STANDARD_COMPUTED_DEFAULT "11")
@@ -70,7 +70,7 @@ endif()
 
 
 
-set(CMAKE_C_IMPLICIT_INCLUDE_DIRECTORIES "C:/Users/Brahmworks/.platformio/packages/toolchain-xtensa-esp-elf/lib/gcc/xtensa-esp-elf/13.2.0/include;C:/Users/Brahmworks/.platformio/packages/toolchain-xtensa-esp-elf/lib/gcc/xtensa-esp-elf/13.2.0/include-fixed;C:/Users/Brahmworks/.platformio/packages/toolchain-xtensa-esp-elf/xtensa-esp-elf/sys-include;C:/Users/Brahmworks/.platformio/packages/toolchain-xtensa-esp-elf/xtensa-esp-elf/include")
+set(CMAKE_C_IMPLICIT_INCLUDE_DIRECTORIES "C:/Users/Brahmworks/.platformio/packages/toolchain-xtensa-esp-elf/lib/gcc/xtensa-esp-elf/14.2.0/include;C:/Users/Brahmworks/.platformio/packages/toolchain-xtensa-esp-elf/lib/gcc/xtensa-esp-elf/14.2.0/include-fixed;C:/Users/Brahmworks/.platformio/packages/toolchain-xtensa-esp-elf/xtensa-esp-elf/include")
 set(CMAKE_C_IMPLICIT_LINK_LIBRARIES "gcc;c;nosys;c;gcc")
-set(CMAKE_C_IMPLICIT_LINK_DIRECTORIES "C:/Users/Brahmworks/.platformio/packages/toolchain-xtensa-esp-elf/lib/gcc/xtensa-esp-elf/13.2.0/esp32;C:/Users/Brahmworks/.platformio/packages/toolchain-xtensa-esp-elf/xtensa-esp-elf/lib/esp32;C:/Users/Brahmworks/.platformio/packages/toolchain-xtensa-esp-elf/lib/gcc/xtensa-esp-elf/13.2.0;C:/Users/Brahmworks/.platformio/packages/toolchain-xtensa-esp-elf/lib/gcc;C:/Users/Brahmworks/.platformio/packages/toolchain-xtensa-esp-elf/xtensa-esp-elf/lib")
+set(CMAKE_C_IMPLICIT_LINK_DIRECTORIES "C:/Users/Brahmworks/.platformio/packages/toolchain-xtensa-esp-elf/lib/gcc/xtensa-esp-elf/14.2.0/esp32;C:/Users/Brahmworks/.platformio/packages/toolchain-xtensa-esp-elf/xtensa-esp-elf/lib/esp32;C:/Users/Brahmworks/.platformio/packages/toolchain-xtensa-esp-elf/lib/gcc/xtensa-esp-elf/14.2.0;C:/Users/Brahmworks/.platformio/packages/toolchain-xtensa-esp-elf/lib/gcc;C:/Users/Brahmworks/.platformio/packages/toolchain-xtensa-esp-elf/xtensa-esp-elf/lib")
 set(CMAKE_C_IMPLICIT_LINK_FRAMEWORK_DIRECTORIES "")

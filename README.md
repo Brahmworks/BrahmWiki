@@ -1,29 +1,30 @@
 # Machani ROS2 Motor Control System
 
-This repository hosts the ESP32 firmware and libraries for the **Machani ROS2 Motor Control System**, a 3-axis robot control platform (Torso, Neck, Head). It communicates with a Jetson Nano (running ROS 2 Foxy) over WiFi using a JSON-based HTTP protocol.
+This repository hosts the ESP32 firmware and libraries for the **Machani ROS2 Motor Control System**, a 3-axis robot control platform (Torso, Neck, Head). It communicates with a Jetson Nano (running ROS 2 Foxy) over **Ethernet (LAN)** using **MicroROS**.
 
 ## System Architecture
 
-The Jetson Nano acts as the command controller, translating ROS 2 topic messages into HTTP requests sent to the ESP32. The ESP32 parses these requests and drives the motors, controls LEDs, handles touch inputs, and monitors battery status.
+The Jetson Nano acts as the command controller. The ESP32 runs a MicroROS node that subscribes to command topics and publishes sensor data.
 
 ```
              ROS2 Foxy on Jetson
                  +---------------------------+
-                 | motor_controller.py       |
-                 | - Subscribes to ROS topics|
-                 | - Sends HTTP -> ESP       |
+                 | MicroROS Agent            |
+                 | - Serial/UDP Bridge       |
                  +------------+--------------+
                               |
-                        WiFi HTTP (JSON)
+                      Ethernet (LAN)
+                       DDS/XRCE-DDS
                               |
                    +----------v-----------+
                    |      ESP32          |
-                   | WebServer Endpoints |
-                   | /torso_move         |
-                   | /neck_move          |
-                   | /head_move          |
-                   | /led                |
-                   | /reb_jet            |
+                   | MicroROS Node       |
+                   | /torso_cmd (Sub)    |
+                   | /neck_cmd  (Sub)    |
+                   | /head_cmd  (Sub)    |
+                   | /led       (Sub)    |
+                   | /touch     (Pub)    |
+                   | /batt      (Pub)    |
                    +----------+----------+
                               |
           +-------------------+--------------------+
@@ -33,63 +34,39 @@ The Jetson Nano acts as the command controller, translating ROS 2 topic messages
  +-----------------+  +---------------+   +-----------------+
 ```
 
-## Communication Protocol
+## Communication Protocol (MicroROS)
 
-The system uses a JSON-based protocol over HTTP. The ESP32 hosts a web server with specific endpoints for control and monitoring.
+The system uses standard ROS 2 topics. The payload for commands is a JSON string to maintain flexibility.
 
-### Endpoints & Topics
+### Topics
 
-| Function | ROS Topic | ESP Endpoint | Direction | Payload Example | Description |
-|----------|-----------|--------------|-----------|-----------------|-------------|
-| **Torso** | `/torso_cmd` | `/torso_move` | Jetson -> ESP | `{"angle":180,"speed":600,"accel":50}` | Angle: -135 to +135<br>Speed: up to 999<br>Accel: up to 100 |
-| **Neck** | `/neck_cmd` | `/neck_move` | Jetson -> ESP | `{"angle":180,"speed":600,"accel":50}` | Angle: -30 to +30<br>Speed: up to 999<br>Accel: up to 100 |
-| **Head** | `/head_cmd` | `/head_move` | Jetson -> ESP | `{"angle":180,"speed":600,"accel":50}` | Angle: -15 to +15<br>Speed: up to 999<br>Accel: up to 100 |
-| **LED** | `/led` | `/led` | Jetson -> ESP | `{"state":"listen"}` | States: listen, mute, loading, offline, connecting, low battery |
-| **Reboot** | `/reb_jet` | `/reb_jet` | Jetson -> ESP | `{"reb_jet":true}` | Signal to reboot the Jetson system |
-| **Touch** | `/touch` | N/A (Sub) | ESP -> Jetson | `{"state":"tap"}` | States: tap, double, up, down, long |
-| **Battery** | `/batt` | N/A (Sub) | ESP -> Jetson | `{"batt":80, "ps":true, "hb_out":1}` | batt: 0-100%<br>ps: power source connected<br>hb_out: counter 1-255 |
-
-### Usage Examples
-
-**ROS 2 Publish Command (Jetson Side):**
-```bash
-ros2 topic pub /torso_cmd std_msgs/msg/String "data: '{\"angle\":180,\"speed\":600,\"accel\":50}'"
-```
-
-**Direct HTTP POST (Testing):**
-```bash
-curl -X POST http://<ESP_IP>:5000/torso_move -d "cmd={\"angle\":150,\"speed\":500,\"accel\":40}"
-```
+| Topic | Type | Direction | Payload Example | Description |
+|-------|------|-----------|-----------------|-------------|
+| `/torso_cmd` | `std_msgs/String` | Jetson -> ESP | `{"angle":180,"speed":600,"accel":50}` | Control Torso Servo |
+| `/neck_cmd` | `std_msgs/String` | Jetson -> ESP | `{"angle":0,"speed":100,"accel":20}` | Control Neck Servo |
+| `/head_cmd` | `std_msgs/String` | Jetson -> ESP | `{"angle":10,"speed":200,"accel":30}` | Control Head Servo |
+| `/led` | `std_msgs/String` | Jetson -> ESP | `{"state":"listen"}` | Control Status LED |
+| `/reb_jet` | `std_msgs/String` | Jetson -> ESP | `{"reb_jet":true}` | Reboot Jetson Signal |
+| `/touch` | `std_msgs/String` | ESP -> Jetson | `{"state":"tap"}` | Touch Event Detected |
+| `/batt` | `std_msgs/String` | ESP -> Jetson | `{"batt":80, "ps":true, "hb_out":1}` | Battery Status |
 
 ## Hardware & Features
 
 The ESP32 firmware manages the following hardware components:
 
-*   **Motors:** 3-Axis control via Servo Drivers.
-*   **Touch Interface:** Capacitive touch input detection (Tap, Swipe, Long press).
-*   **Feedback:** WS2812B LED status indication.
-*   **Power:** Battery monitoring via I2C.
+*   **Motors:** 3-Axis control via Servo Drivers (UART).
+*   **Touch Interface:** Capacitive touch input detection (GPIO 33).
+*   **Feedback:** WS2812B LED status indication (GPIO 27).
+*   **Power:** Battery monitoring via I2C (GPIO 21 SDA, 22 SCL).
+*   **Connectivity:** Wired Ethernet (LAN) via ENC28J60 (SPI).
 
-## ROS Package Structure (Jetson)
+## Setup & Usage
 
-For reference, the companion ROS 2 package on the Jetson has the following structure:
-
-```
-ros2_ws/
-├── src/
-│   └── motor_control_pkg/
-│       ├── motor_controller.py  # Subscribes to ROS topics, sends HTTP to ESP
-│       ├── esp_monitor.py       # Pings ESP, publishes status
-│       └── ...
-```
+For detailed instructions on setting up the hardware, flashing the firmware, and running the system, please refer to the **[User Manual](USER_MANUAL.md)**.
 
 ## Base Libraries & Documentation
 
-This repository also includes the core libraries used to build the Machani system, supporting ESP32, ATmega328P, and ATmega2560.
-
-*   **[IoT Communication Protocol](docs/iot_communication_protocol.md):** Detailed JSON architecture for device handshakes and health checks.
-*   **Sensors:** Libraries for [MAX6675](docs/libraries/MAX_6675-k-type-thermo.md), [MAX31865](docs/libraries/MAX31865_PT100-thermo.md), and [Ultrasonic DYPA02](docs/libraries/ultrasonic_dypa02.md).
-*   **Connectivity:** [WiFi](docs/libraries/wifi.md) and [UART](docs/libraries/uart_standard.md) standard libraries.
-*   **Microcontrollers:** Documentation for [ESP32](docs/microcontrollers/esp32.md), [ATmega328P](docs/microcontrollers/atmega328.md), and [ATmega2560](docs/microcontrollers/atmega2560.md).
+*   **Connectivity:** [UART](docs/libraries/uart_standard.md) standard library.
+*   **Microcontrollers:** Documentation for [ESP32](docs/microcontrollers/esp32.md).
 
 For detailed documentation on all libraries, please visit the [BrahmWiki Documentation Site](https://brahmworks.github.io/BrahmWiki/).

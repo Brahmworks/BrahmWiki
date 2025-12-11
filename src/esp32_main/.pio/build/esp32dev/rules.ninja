@@ -1438,25 +1438,6 @@ rule C_STATIC_LIBRARY_LINKER____idf_wifi_provisioning
 #############################################
 # Rule for compiling C files.
 
-rule C_COMPILER____idf_src
-  depfile = $DEP_FILE
-  deps = gcc
-  command = C:\Users\Brahmworks\.platformio\packages\toolchain-xtensa-esp-elf\bin\xtensa-esp32-elf-gcc.exe $DEFINES $INCLUDES $FLAGS -MD -MT $out -MF $DEP_FILE -o $out   -c $in
-  description = Building C object $out
-
-
-#############################################
-# Rule for linking C static library.
-
-rule C_STATIC_LIBRARY_LINKER____idf_src
-  command = cmd.exe /C "$PRE_LINK && C:\Users\Brahmworks\.platformio\packages\tool-cmake\bin\cmake.exe -E remove $TARGET_FILE && C:\Users\Brahmworks\.platformio\packages\toolchain-xtensa-esp-elf\bin\xtensa-esp32-elf-ar.exe qc $TARGET_FILE $LINK_FLAGS $in && C:\Users\Brahmworks\.platformio\packages\toolchain-xtensa-esp-elf\bin\xtensa-esp32-elf-ranlib.exe $TARGET_FILE && $POST_BUILD"
-  description = Linking C static library $TARGET_FILE
-  restat = $RESTAT
-
-
-#############################################
-# Rule for compiling C files.
-
 rule C_COMPILER____idf_uart_standard
   depfile = $DEP_FILE
   deps = gcc
@@ -1468,6 +1449,25 @@ rule C_COMPILER____idf_uart_standard
 # Rule for linking C static library.
 
 rule C_STATIC_LIBRARY_LINKER____idf_uart_standard
+  command = cmd.exe /C "$PRE_LINK && C:\Users\Brahmworks\.platformio\packages\tool-cmake\bin\cmake.exe -E remove $TARGET_FILE && C:\Users\Brahmworks\.platformio\packages\toolchain-xtensa-esp-elf\bin\xtensa-esp32-elf-ar.exe qc $TARGET_FILE $LINK_FLAGS $in && C:\Users\Brahmworks\.platformio\packages\toolchain-xtensa-esp-elf\bin\xtensa-esp32-elf-ranlib.exe $TARGET_FILE && $POST_BUILD"
+  description = Linking C static library $TARGET_FILE
+  restat = $RESTAT
+
+
+#############################################
+# Rule for compiling C files.
+
+rule C_COMPILER____idf_esp_eth_enc28j60
+  depfile = $DEP_FILE
+  deps = gcc
+  command = C:\Users\Brahmworks\.platformio\packages\toolchain-xtensa-esp-elf\bin\xtensa-esp32-elf-gcc.exe $DEFINES $INCLUDES $FLAGS -MD -MT $out -MF $DEP_FILE -o $out   -c $in
+  description = Building C object $out
+
+
+#############################################
+# Rule for linking C static library.
+
+rule C_STATIC_LIBRARY_LINKER____idf_esp_eth_enc28j60
   command = cmd.exe /C "$PRE_LINK && C:\Users\Brahmworks\.platformio\packages\tool-cmake\bin\cmake.exe -E remove $TARGET_FILE && C:\Users\Brahmworks\.platformio\packages\toolchain-xtensa-esp-elf\bin\xtensa-esp32-elf-ar.exe qc $TARGET_FILE $LINK_FLAGS $in && C:\Users\Brahmworks\.platformio\packages\toolchain-xtensa-esp-elf\bin\xtensa-esp32-elf-ranlib.exe $TARGET_FILE && $POST_BUILD"
   description = Linking C static library $TARGET_FILE
   restat = $RESTAT
@@ -1493,10 +1493,29 @@ rule C_STATIC_LIBRARY_LINKER____idf_rtos_blink_esp32
 
 
 #############################################
+# Rule for compiling C files.
+
+rule C_COMPILER____idf_src
+  depfile = $DEP_FILE
+  deps = gcc
+  command = C:\Users\Brahmworks\.platformio\packages\toolchain-xtensa-esp-elf\bin\xtensa-esp32-elf-gcc.exe $DEFINES $INCLUDES $FLAGS -MD -MT $out -MF $DEP_FILE -o $out   -c $in
+  description = Building C object $out
+
+
+#############################################
+# Rule for linking C static library.
+
+rule C_STATIC_LIBRARY_LINKER____idf_src
+  command = cmd.exe /C "$PRE_LINK && C:\Users\Brahmworks\.platformio\packages\tool-cmake\bin\cmake.exe -E remove $TARGET_FILE && C:\Users\Brahmworks\.platformio\packages\toolchain-xtensa-esp-elf\bin\xtensa-esp32-elf-ar.exe qc $TARGET_FILE $LINK_FLAGS $in && C:\Users\Brahmworks\.platformio\packages\toolchain-xtensa-esp-elf\bin\xtensa-esp32-elf-ranlib.exe $TARGET_FILE && $POST_BUILD"
+  description = Linking C static library $TARGET_FILE
+  restat = $RESTAT
+
+
+#############################################
 # Rule for re-running cmake.
 
 rule RERUN_CMAKE
-  command = C:\Users\Brahmworks\.platformio\packages\tool-cmake\bin\cmake.exe -SC:\Users\Brahmworks\OneDrive\Documents\GitHub\Reactor4-shell\BrahmWiki\src\rtos_blink_esp32 -BC:\Users\Brahmworks\OneDrive\Documents\GitHub\Reactor4-shell\BrahmWiki\src\rtos_blink_esp32\.pio\build\esp32dev
+  command = C:\Users\Brahmworks\.platformio\packages\tool-cmake\bin\cmake.exe -SC:\Users\Brahmworks\OneDrive\Documents\GitHub\Reactor4-shell\Machani_ESP32lib\src\esp32_main -BC:\Users\Brahmworks\OneDrive\Documents\GitHub\Reactor4-shell\Machani_ESP32lib\src\esp32_main\.pio\build\esp32dev
   description = Re-running CMake...
   generator = 1
 

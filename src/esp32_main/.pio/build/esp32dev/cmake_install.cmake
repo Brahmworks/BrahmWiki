@@ -1,4 +1,4 @@
-# Install script for directory: C:/Users/Brahmworks/OneDrive/Documents/GitHub/Reactor4-shell/BrahmWiki/src/rtos_blink_esp32
+# Install script for directory: C:/Users/Brahmworks/OneDrive/Documents/GitHub/Reactor4-shell/Machani_ESP32lib/src/esp32_main
 
 # Set the install prefix
 if(NOT DEFINED CMAKE_INSTALL_PREFIX)
@@ -34,7 +34,7 @@ endif()
 
 if(NOT CMAKE_INSTALL_LOCAL_ONLY)
   # Include the install script for each subdirectory.
-  include("C:/Users/Brahmworks/OneDrive/Documents/GitHub/Reactor4-shell/BrahmWiki/src/rtos_blink_esp32/.pio/build/esp32dev/esp-idf/cmake_install.cmake")
+  include("C:/Users/Brahmworks/OneDrive/Documents/GitHub/Reactor4-shell/Machani_ESP32lib/src/esp32_main/.pio/build/esp32dev/esp-idf/cmake_install.cmake")
 
 endif()
 
@@ -46,5 +46,5 @@ endif()
 
 string(REPLACE ";" "\n" CMAKE_INSTALL_MANIFEST_CONTENT
        "${CMAKE_INSTALL_MANIFEST_FILES}")
-file(WRITE "C:/Users/Brahmworks/OneDrive/Documents/GitHub/Reactor4-shell/BrahmWiki/src/rtos_blink_esp32/.pio/build/esp32dev/${CMAKE_INSTALL_MANIFEST}"
+file(WRITE "C:/Users/Brahmworks/OneDrive/Documents/GitHub/Reactor4-shell/Machani_ESP32lib/src/esp32_main/.pio/build/esp32dev/${CMAKE_INSTALL_MANIFEST}"
      "${CMAKE_INSTALL_MANIFEST_CONTENT}")

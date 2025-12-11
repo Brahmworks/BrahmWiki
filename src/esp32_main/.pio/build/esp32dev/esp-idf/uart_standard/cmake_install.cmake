@@ -1,4 +1,4 @@
-# Install script for directory: C:/Users/Brahmworks/OneDrive/Documents/GitHub/Reactor4-shell/BrahmWiki/src/rtos_blink_esp32/components/uart_standard
+# Install script for directory: C:/Users/Brahmworks/OneDrive/Documents/GitHub/Reactor4-shell/Machani_ESP32lib/src/esp32_main/components/uart_standard
 
 # Set the install prefix
 if(NOT DEFINED CMAKE_INSTALL_PREFIX)

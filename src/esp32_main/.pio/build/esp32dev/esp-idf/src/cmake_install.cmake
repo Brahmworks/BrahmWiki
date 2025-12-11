@@ -1,4 +1,4 @@
-# Install script for directory: C:/Users/Brahmworks/OneDrive/Documents/GitHub/Reactor4-shell/BrahmWiki/src/rtos_blink_esp32/src
+# Install script for directory: C:/Users/Brahmworks/OneDrive/Documents/GitHub/Reactor4-shell/Machani_ESP32lib/src/esp32_main/src
 
 # Set the install prefix
 if(NOT DEFINED CMAKE_INSTALL_PREFIX)

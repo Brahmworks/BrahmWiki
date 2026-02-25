@@ -1,6 +1,55 @@
-# Standard UART Communication Library
+# UART Libraries
 
-This library provides a standardized, cross-platform interface for UART (serial) communication on ESP32 and AVR microcontrollers. The goal is to write UART code once and have it work on multiple platforms without modification.
+BrahmWiki provides two UART libraries for different use cases:
+
+## 1. RobustUART Library (Recommended for packetized communication)
+
+For robust, packetized UART communication with error handling, retries, and acknowledgment, use the **RobustUART** library.
+
+### Features
+
+- **Packet Protocol**: `SOH[LEN][CMD][PAYLOAD][CHKSUM]EOT` with ACK/NAK responses
+- **Cross-Platform**: ESP32 (ESP-IDF/Arduino), ATmega328P, ATmega2560
+- **Error Handling**: XOR checksum, timeout, automatic retries
+- **Heartbeat**: Automatic connection monitoring
+- **Zero Dependencies**: <2KB flash footprint
+
+### Quick Start
+
+**Host (ESP32):**
+```cpp
+#include <RobustUART.h>
+#include <RobustUART_host.h>
+
+RobustHost<HardwareSerial> host(&Serial2);
+host.begin(115200, 16, 17);
+
+// Send ping
+if (host.ping(500)) {
+    Serial.println("Connected!");
+}
+```
+
+**Client (ATmega):**
+```cpp
+#include <RobustUART.h>
+#include <RobustUART_client.h>
+
+RobustClient<HardwareSerial> client(&Serial);
+client.begin(115200);
+
+void loop() {
+    client.process();
+}
+```
+
+For detailed documentation, see [RobustUART README](../../lib/robust_uart/README.md).
+
+---
+
+## 2. Standard UART Library
+
+For simple, raw UART communication without packetization, use the **uart_standard** library. The goal is to write UART code once and have it work on multiple platforms without modification.
 
 ## Features
 

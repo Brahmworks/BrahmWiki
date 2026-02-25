@@ -8,6 +8,34 @@ For detailed documentation, please visit the [BrahmWiki Documentation Site](http
 
 -   **RTOS Blink Examples:** Simple "Blink LED" projects using a Real-Time Operating System (RTOS) for all three platforms, demonstrating the use of the custom serial library.
 
+## UART Communication Libraries
+
+This project includes two UART libraries:
+
+### 1. RobustUART (Recommended)
+
+A cross-platform C++ library for robust packetized UART communication with error handling, retries, and acknowledgment.
+
+- Packet Protocol: `SOH[LEN][CMD][PAYLOAD][CHKSUM]EOT` with ACK/NAK
+- Cross-Platform: ESP32 (ESP-IDF/Arduino), ATmega328P, ATmega2560
+- XOR Checksum, 200ms timeout, 3 retries
+- Automatic heartbeat
+- <2KB flash footprint
+
+Quick start:
+```cpp
+// Host (ESP32)
+RobustHost<HardwareSerial> host(&Serial2);
+host.begin(115200, 16, 17);
+if (host.ping(500)) { Serial.println("Connected!"); }
+```
+
+See [lib/robust_uart/README.md](lib/robust_uart/README.md) for full documentation.
+
+### 2. Standard UART
+
+A simple C library for basic UART communication. See [docs/libraries/uart_standard.md](docs/libraries/uart_standard.md).
+
 ## IoT Communication Protocol
 
 This project includes a standardized JSON-based communication protocol for IoT devices. The protocol is designed to be lightweight and efficient, making it suitable for resource-constrained devices.

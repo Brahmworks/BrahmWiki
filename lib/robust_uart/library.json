@@ -1,0 +1,27 @@
+{
+    "name": "RobustUART",
+    "version": "1.0.0",
+    "description": "Cross-platform packetized UART communication library with ACK/NAK, CRC, retries, and heartbeat support",
+    "keywords": "uart, serial, communication, protocol, packet, robust, esp32, atmega, arduino",
+    "authors": [
+        {
+            "name": "BrahmWiki",
+            "email": "brahmworks@example.com",
+            "url": "https://github.com/Brahmworks"
+        }
+    ],
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/Brahmworks/BrahmWiki.git"
+    },
+    "license": "MIT",
+    "frameworks": "arduino, espidf",
+    "platforms": "espressif32, atmelavr, atmelsam",
+    "headers": "include/*.h",
+    "src_dir": "include",
+    "examples": [
+        "examples/esp32_host/README.md",
+        "examples/atmega_client/README.md",
+        "examples/pingpong/README.md"
+    ]
+}
